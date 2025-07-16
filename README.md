@@ -1,4 +1,4 @@
-                                                                                                                                   Toprak Steam Cracker & Manifest Oluşturucu
+                                            Toprak Steam Cracker & Manifest Oluşturucu
                                                                                                                                    
                                                                                                                                    
                                                                                                                                    
