@@ -80,20 +80,7 @@ Python'u buradan indirebilirsiniz.
 
 Gerekli Kütüphaneleri Yükleyin: Projenin bağımlılıklarını kurmak için komut istemcinizi (CMD/PowerShell) açın ve aşağıdaki komutu çalıştırın:
 
-Bash
 
-pip install requests tkinterdnd2 pywin32
-pywin32 kütüphanesi winreg modülü için gereklidir (Windows kayıt defterine erişim).
-
-Projeyi Klonlayın veya İndirin: Bu depoyu bilgisayarınıza klonlayın veya ZIP olarak indirin:
-
-Bash
-
-git clone https://github.com/KULLANICI_ADINIZ/PROJE_ADINIZ.git
-cd PROJE_ADINIZ
-Uygulamayı Çalıştırın: Proje klasörüne gittikten sonra, aşağıdaki komutla uygulamayı başlatın:
-
-Bash
 
 python "Cracker Cevo.py"
 Kullanım Adımları:
