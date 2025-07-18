@@ -1,6 +1,9 @@
 import webbrowser
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+from PIL import Image, ImageTk
+from io import BytesIO
+import requests
 import requests
 import os
 import threading
@@ -279,7 +282,7 @@ class SteamManifestTool:
             pady=8,
             cursor='hand2'
         )
-        self.about_btn.place(relx=0.74, rely=0.95)
+        self.about_btn.place(relx=0.72, rely=0.93)
         self.add_button_hover_effects(self.about_btn, self.info_button, self._get_hover_color(self.info_button))
 
     def show_about_dialog(self):
@@ -344,7 +347,7 @@ Lütfen etik ve yasal sınırlar içinde kullanınız.
             pady=8,
             cursor='hand2'
         )
-        self.installed_games_btn.place(relx=0.01, rely=0.1)
+        self.installed_games_btn.place(relx=0.01, rely=0.07)
         self.add_button_hover_effects(self.installed_games_btn, self.info_button, self._get_hover_color(self.info_button))
 
     def load_installed_games(self):
@@ -462,7 +465,7 @@ Lütfen etik ve yasal sınırlar içinde kullanınız.
             pady=8,
             cursor='hand2'
         )
-        self.hid_remove_btn.place(relx=0.85, rely=0.05)
+        self.hid_remove_btn.place(relx=0.85, rely=0.07)
         self.add_button_hover_effects(self.hid_remove_btn, self.danger_button, self._get_hover_color(self.danger_button))
 
     def create_zip_upload_button(self, parent):
@@ -678,19 +681,7 @@ Lütfen etik ve yasal sınırlar içinde kullanınız.
         try:
             url = "https://raw.githubusercontent.com/toprak1224/hid.dll/main/hid.dll "
             urllib.request.urlretrieve(url, save_path)
-            
-            # Hash kontrolü
-            expected_hash = "306D129B6DE45B07CA82BC68BE8D3B761347D35B7C49F916F125F61640A73817"
-            with open(save_path, 'rb') as f:
-                file_hash = hashlib.sha256(f.read()).hexdigest()
-            
-            if file_hash != expected_hash:
-                messagebox.showerror("Hata", "Dosya bozuk veya orijinal değil. Güncel sürümü indirin!")
-                os.remove(save_path)  # Hatalı dosyayı sil
-                return
-            
-            messagebox.showinfo("Başarılı", f"DLL başarıyla indirildi!
-    Kaydedilen konum: {save_path}")
+            messagebox.showinfo("Başarılı", f"DLL başarıyla indirildi!\nKaydedilen konum: {save_path}")
             self.animate_status_message("✅ HID.dll BAŞARIYLA İNDİRİLDİ", self.success_button)
         except Exception as e:
             messagebox.showerror("Hata", f"DLL indirilirken hata oluştu:\n{str(e)}")
@@ -742,7 +733,7 @@ Lütfen etik ve yasal sınırlar içinde kullanınız.
     def show_game_search(self):
         search_window = tk.Toplevel(self.root)
         search_window.title("Steam Oyun Arama")
-        search_window.geometry("500x400")
+        search_window.geometry("800x800")
         search_window.configure(bg=self.secondary_bg)
         search_window.resizable(False, False)
 
@@ -751,7 +742,8 @@ Lütfen etik ve yasal sınırlar içinde kullanınız.
 
         search_var = tk.StringVar()
         search_entry = tk.Entry(search_window, textvariable=search_var, font=("Segoe UI", 12),
-                              bg=self.highlight_color, fg=self.text_color, insertbackground=self.entry_insert_color, relief=tk.FLAT)
+                                bg=self.highlight_color, fg=self.text_color,
+                                insertbackground=self.entry_insert_color, relief=tk.FLAT)
         search_entry.pack(pady=5, ipadx=10, ipady=6, fill=tk.X, padx=50)
 
         suggestion_box = tk.Listbox(search_window, font=("Segoe UI", 10),
@@ -759,10 +751,44 @@ Lütfen etik ve yasal sınırlar içinde kullanınız.
                                   selectbackground=self.primary_button)
         suggestion_box.pack(pady=5, fill=tk.BOTH, expand=True, padx=50)
 
+        hovered_index = [-1]  
+
+        def on_mouse_hover(event):
+            index = suggestion_box.nearest(event.y)
+            if 0 <= hovered_index[0] < suggestion_box.size():
+                suggestion_box.itemconfig(hovered_index[0], fg=self.text_color)
+            hovered_index[0] = index
+            suggestion_box.itemconfig(index, fg="#FFD700")
+
+        suggestion_box.bind("<Motion>", on_mouse_hover)
+
+
         selected_label = tk.Label(search_window, text="Seçilen Oyun: ", font=("Segoe UI", 11),
-                                fg=self.text_color, bg=self.secondary_bg)
+                                  fg=self.text_color, bg=self.secondary_bg)
         selected_label.pack(pady=5)
 
+        cover_label = tk.Label(search_window, bg=self.secondary_bg)
+        cover_label.pack(pady=10)
+        detail_label = tk.Label(search_window, bg=self.secondary_bg, fg=self.text_color,
+                                font=("Segoe UI", 10), justify="left", anchor="w")
+        detail_label.pack(padx=50, pady=(5, 15), fill=tk.X)
+
+
+        
+        def fetch_and_show_cover(app_id):
+            try:
+                url = f"https://cdn.cloudflare.steamstatic.com/steam/apps/{app_id}/header.jpg"
+                response = requests.get(url, timeout=10)
+                response.raise_for_status()
+                image = Image.open(BytesIO(response.content))
+                image = image.resize((400, 190))
+                photo = ImageTk.PhotoImage(image)
+                cover_label.config(image=photo)
+                cover_label.image = photo
+            except:
+                cover_label.config(image="", text="Kapak yüklenemedi")
+
+        
         def update_suggestions(event=None):
             keyword = search_var.get().lower()
             suggestion_box.delete(0, tk.END)
@@ -781,6 +807,38 @@ Lütfen etik ve yasal sınırlar içinde kullanınız.
                     self.app_id_var.set(app_id)
                     selected_label.config(text=f"Seçilen Oyun: {game_name} (ID: {app_id})")
                     self.animate_status_message(f"🎮 OYUN SEÇİLDİ: {game_name}", self.success_button)
+                    fetch_and_show_cover(app_id)
+                    fetch_and_show_details(app_id)
+
+        
+        def fetch_and_show_details(app_id):
+            try:
+                url = f"https://store.steampowered.com/api/appdetails?appids={app_id}"
+                response = requests.get(url, timeout=10)
+                data = response.json()
+                if not data[app_id]["success"]:
+                    detail_label.config(text="Detaylar alınamadı.")
+                    return
+
+                app_data = data[app_id]["data"]
+                name = app_data.get("name", "Bilinmiyor")
+                release = app_data.get("release_date", {}).get("date", "Bilinmiyor")
+                publishers = ", ".join(app_data.get("publishers", [])) or "Bilinmiyor"
+                genres = ", ".join([g['description'] for g in app_data.get("genres", [])]) or "Bilinmiyor"
+                price = app_data.get("price_overview", {}).get("final_formatted", "Ücretsiz / Bilinmiyor")
+
+                text = f"""
+📌 Ad: {name}
+📅 Çıkış: {release}
+🏢 Yayıncı: {publishers}
+📚 Tür: {genres}
+💵 Fiyat: {price}
+"""
+                detail_label.config(text=text.strip())
+            except Exception as e:
+                detail_label.config(text=f"Detaylar alınamadı: {e}")
+
+
 
         button_frame = tk.Frame(search_window, bg=self.secondary_bg)
         button_frame.pack(pady=10)
@@ -815,7 +873,7 @@ Lütfen etik ve yasal sınırlar içinde kullanınız.
             pady=8,
             cursor='hand2'
         )
-        self.steamdb_btn.place(relx=0.85, rely=0.95)
+        self.steamdb_btn.place(relx=0.85, rely=0.93)
         self.add_button_hover_effects(self.steamdb_btn, self.info_button, self._get_hover_color(self.info_button))
 
     def create_animated_background(self):
@@ -984,7 +1042,7 @@ Lütfen etik ve yasal sınırlar içinde kullanınız.
         footer_frame = tk.Frame(parent, bg=self.bg_color)
         footer_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(25, 0))
 
-        self.footer_label = tk.Label(footer_frame, text="👑 TOPRAK TARAFINDAN YAPILDI - 2025 ||||||||||||||||||||||||||||||||||||||||",
+        self.footer_label = tk.Label(footer_frame, text="👑 TOPRAK TARAFINDAN YAPILDI - 2025 ",
                               font=("Segoe UI", 9, "italic"),
                               fg='#666666', bg=self.bg_color)
         self.footer_label.pack(side=tk.RIGHT)
@@ -1400,7 +1458,7 @@ def main():
 
         root.deiconify()
         
-        # System32 yolunu PATH e ekle (eğer zaten yoksa)
+        
         system32_path = os.path.join(os.environ['SystemRoot'], 'System32')
         if system32_path not in os.environ['PATH']:
             os.environ['PATH'] = system32_path + ';' + os.environ['PATH']
