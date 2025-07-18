@@ -430,7 +430,7 @@ Lütfen etik ve yasal sınırlar içinde kullanınız.
 
     def remove_hid_dll(self):
         try:
-            subprocess.run(['taskkill', '/F', '/IM', 'steam.exe'], shell=True)
+            subprocess.run(['taskkill', '/F', '/IM', 'steam.exe'])
             time.sleep(2)
 
             with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\WOW6432Node\\Valve\\Steam") as key:
@@ -676,9 +676,21 @@ Lütfen etik ve yasal sınırlar içinde kullanınız.
             messagebox.showwarning("Uyarı", "Steam kurulum yolu bulunamadı. Dosya masaüstüne kaydedilecek.")
 
         try:
-            url = "https://github.com/toprak1224/hid.dll/blob/main/hid.dll?raw=true"
+            url = "https://raw.githubusercontent.com/toprak1224/hid.dll/main/hid.dll "
             urllib.request.urlretrieve(url, save_path)
-            messagebox.showinfo("Başarılı", f"DLL başarıyla indirildi!\nKaydedilen konum: {save_path}")
+            
+            # Hash kontrolü
+            expected_hash = "306D129B6DE45B07CA82BC68BE8D3B761347D35B7C49F916F125F61640A73817"
+            with open(save_path, 'rb') as f:
+                file_hash = hashlib.sha256(f.read()).hexdigest()
+            
+            if file_hash != expected_hash:
+                messagebox.showerror("Hata", "Dosya bozuk veya orijinal değil. Güncel sürümü indirin!")
+                os.remove(save_path)  # Hatalı dosyayı sil
+                return
+            
+            messagebox.showinfo("Başarılı", f"DLL başarıyla indirildi!
+    Kaydedilen konum: {save_path}")
             self.animate_status_message("✅ HID.dll BAŞARIYLA İNDİRİLDİ", self.success_button)
         except Exception as e:
             messagebox.showerror("Hata", f"DLL indirilirken hata oluştu:\n{str(e)}")
@@ -1326,8 +1338,8 @@ Lütfen etik ve yasal sınırlar içinde kullanınız.
             return
 
         try:
-            subprocess.run(['taskkill', '/F', '/IM', 'steam.exe'], shell=True)
-            subprocess.Popen([steam_exe], shell=True)
+            subprocess.run(['taskkill', '/F', '/IM', 'steam.exe'])
+            subprocess.Popen([steam_exe])
             messagebox.showinfo('✅ BAŞARILI', '🔄 Steam başarıyla yeniden başlatıldı!\n\n🎮 Artık oyununuzu oynayabilirsiniz!')
             self.animate_status_message("⚡ STEAM YENİDEN BAŞLATILDI", self.success_button)
         except Exception as e:
@@ -1387,6 +1399,11 @@ def main():
             return
 
         root.deiconify()
+        
+        # System32 yolunu PATH e ekle (eğer zaten yoksa)
+        system32_path = os.path.join(os.environ['SystemRoot'], 'System32')
+        if system32_path not in os.environ['PATH']:
+            os.environ['PATH'] = system32_path + ';' + os.environ['PATH']
 
         app = SteamManifestTool(root)
 
