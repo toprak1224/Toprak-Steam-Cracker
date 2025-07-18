@@ -4,7 +4,6 @@ from tkinter import ttk, messagebox, filedialog
 from PIL import Image, ImageTk
 from io import BytesIO
 import requests
-import requests
 import os
 import threading
 import zipfile
@@ -629,8 +628,15 @@ Lütfen etik ve yasal sınırlar içinde kullanınız.
 
         valid_files = []
         for f in files:
-            if isinstance(f, str) and os.path.isfile(f) and f.lower().endswith(('.manifest', '.lua')):
-                valid_files.append(f)
+            if isinstance(f, str):
+                if os.path.isdir(f):
+                    for root_dir, _, files_in_dir in os.walk(f):
+                        for file_in_dir in files_in_dir:
+                            file_path = os.path.join(root_dir, file_in_dir)
+                            if os.path.isfile(file_path) and file_path.lower().endswith(('.manifest', '.lua')):
+                                valid_files.append(file_path)
+                elif os.path.isfile(f) and f.lower().endswith(('.manifest', '.lua')):
+                    valid_files.append(f)
             elif isinstance(f, dict) and 'name' in f and f['name'].lower().endswith(('.manifest', '.lua')):
                 valid_files.append(f['name'])
 
@@ -1391,8 +1397,8 @@ Lütfen etik ve yasal sınırlar içinde kullanınız.
             return
 
         steam_exe = os.path.join(steam_path, 'steam.exe')
-        if not os.path.exists(steam_exe):
-            self.show_error_message("steam.exe bulunamadı!\nLütfen doğru Steam klasörünü seçtiğinizden emin olun.")
+        if not os.path.isfile(steam_exe):
+            self.show_error_message("steam.exe bulunamadı! Lütfen doğru Steam klasörünü seçtiğinizden emin olun.")
             return
 
         try:
