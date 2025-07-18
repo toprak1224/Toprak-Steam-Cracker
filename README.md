@@ -3,7 +3,7 @@
                                                                                                                                    
                                                                                                                                    
                                                                                                                                    
-<img width="492" height="524" alt="image" src="https://github.com/user-attachments/assets/8033ee05-efd6-42e9-9195-bcf0dba72708" /> <img width="492" height="524" alt="image" src="https://github.com/user-attachments/assets/025f51e8-f4ea-40a9-886c-92c041d112f5" />
+<img width="392" height="424" alt="image" src="https://github.com/user-attachments/assets/8033ee05-efd6-42e9-9195-bcf0dba72708" /> <img width="392" height="424" alt="image" src="https://github.com/user-attachments/assets/025f51e8-f4ea-40a9-886c-92c041d112f5" />
 
 
 # 📄 Toprak Steam Cracker & Manifest Oluşturucu
