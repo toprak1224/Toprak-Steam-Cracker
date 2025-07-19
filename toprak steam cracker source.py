@@ -15,6 +15,8 @@ import time
 import urllib.request
 import winreg
 import json
+import ctypes
+
 
 
 LANGUAGES = {
@@ -961,9 +963,19 @@ class SteamManifestTool:
     def show_game_search(self):
         search_window = tk.Toplevel(self.root)
         search_window.title(self.strings['game_search_title'])
-        search_window.geometry("800x800")
         search_window.configure(bg=self.secondary_bg)
         search_window.resizable(False, False)
+
+        search_window.update_idletasks()
+        main_x = self.root.winfo_x()
+        main_y = self.root.winfo_y()
+        main_width = self.root.winfo_width()
+        main_height = self.root.winfo_height()
+        win_width = 800
+        win_height = 800
+        x = main_x + (main_width // 2) - (win_width // 2)
+        y = main_y + (main_height // 2) - (win_height // 2)
+        search_window.geometry(f"{win_width}x{win_height}+{x}+{y}")
 
         tk.Label(search_window, text=self.strings['search_steam_game_header'], font=("Segoe UI", 16, "bold"),
                 fg=self.text_color, bg=self.secondary_bg).pack(pady=10)
@@ -1107,7 +1119,8 @@ class SteamManifestTool:
     def create_animated_background(self):
         self.bg_canvas = tk.Canvas(self.root, bg=self.bg_color, highlightthickness=0)
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
-
+        self.bg_canvas.lower() 
+        
         self.particles = []
         for i in range(20):
             x = (i * 45) % 900
@@ -1666,6 +1679,7 @@ class SteamManifestTool:
 
 def main():
     try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
         if 'TkinterDnD' in globals():
             root = TkinterDnD.Tk()
         else:
