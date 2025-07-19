@@ -87,8 +87,10 @@ CMD veya PowerShell’de aşağıdaki komutu çalıştırın:
 
 ⬅️ Türkçe sürüm için [buraya tıklayın 🇹🇷](#-toprak-steam-cracker--manifest-oluşturucu)
 
-<img width="392" height="424" alt="image" src="https://github.com/user-attachments/assets/8033ee05-efd6-42e9-9195-bcf0dba72708" />
-<img width="392" height="424" alt="image" src="https://github.com/user-attachments/assets/025f51e8-f4ea-40a9-886c-92c041d112f5" />
+<img width="392" height="424" alt="image" src="https://github.com/user-attachments/assets/cf07e99d-8a42-40f1-9487-df38dac21274" />
+
+<img width="392" height="424" alt="image" src="https://github.com/user-attachments/assets/ab3b93ab-a3f4-45eb-9f0a-9007a9b69d81" />
+
 
 
 Toprak Steam Cracker is a desktop application developed for Windows, designed to simplify the management of manifest and LUA files for Steam games.  
