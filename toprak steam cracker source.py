@@ -1119,7 +1119,7 @@ class SteamManifestTool:
     def create_animated_background(self):
         self.bg_canvas = tk.Canvas(self.root, bg=self.bg_color, highlightthickness=0)
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
-        self.bg_canvas.lower() 
+        # self.bg_canvas.lower() Removed
         
         self.particles = []
         for i in range(20):
@@ -1728,3 +1728,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
