@@ -1,10 +1,18 @@
 import webbrowser
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
-from PIL import Image, ImageTk
+from tkinter import ttk, messagebox, filedialog, simpledialog
+try:
+    # Pillow paketiyle gelir
+    from PIL import Image, ImageTk
+    PIL_AVAILABLE = True
+except Exception:
+    Image = None
+    ImageTk = None
+    PIL_AVAILABLE = False
 from io import BytesIO
 import requests
 import os
+import sys
 import threading
 import zipfile
 import shutil
@@ -15,8 +23,7 @@ import time
 import urllib.request
 import winreg
 import json
-import ctypes
-
+import re
 
 
 LANGUAGES = {
@@ -133,7 +140,7 @@ Lütfen bu yazılımı yalnızca **etik ve yasal sınırlar içinde** kullanın�
         "steam_path_selected": "✅ STEAM KONUMU SEÇİLDİ",
         "downloading_manifests_status": "🌐 MANIFEST DOSYALARI İNDİRİLİYOR...",
         "installing_to_steam_status": "⚙️ STEAM'E KURULUYOR...",
-        "game_crack_success_status": "🎉 OYUN BAŞARIYLA KIRILDI: ID {app_id}",
+        "game_crack_success_status": "� OYUN BAŞARIYLA KIRILDI: ID {app_id}",
         "install_fail_status": "❌ KURULUM BAŞARISIZ!",
         "download_fail_status": "❌ İNDİRME BAŞARISIZ!",
         "download_error_title": "❌ İNDİRME HATASI",
@@ -162,7 +169,12 @@ Lütfen bu yazılımı yalnızca **etik ve yasal sınırlar içinde** kullanın�
         "font_animation_error": "Font animasyon hatası: {error}",
         "critical_error_title": "Kritik Hata",
         "app_start_error": "Uygulama başlatılamadı:\n{error}",
-        "faq_url": "https://rentry.co/topraksteamcrackerSSS"
+        "faq_url": "https://rentry.co/topraksteamcrackerSSS",
+        "online_fix_btn": "🔗 Online Fix İndirici",
+        "online_fix_not_found": "online_fix.py dosyası bulunamadı!",
+        "online_fix_error": "Online fix betiği çalıştırılırken hata oluştu:\n{error}",
+        "online_fix_success_msg": "Online Fix betiği başarıyla başlatıldı.",
+        "online_fix_success_status": "✅ ONLINE FIX BAŞLATILDI"
         },
     'en': {
         "legal_title": "Legal Notice",
@@ -179,17 +191,11 @@ This software has been developed for **educational and experimental** purposes o
 🔧 The intended use of this software is limited to **performing technical analysis and integration tests on the Steam client**.
 
 ❗ Important Legal Information:
-Using content from the Steam platform **without purchasing a license** constitutes a **crime** under;
-
-- **Law No. 5846 on Intellectual and Artistic Works**,
-- **Articles 135, 136, and 137 of the Turkish Penal Code**,
-- and **international intellectual property laws**.
-
-🚫 Such illegal use may result in **legal sanctions as well as criminal liability**.
-
+Using Steam content **without a license** is a violation of **international copyright laws** and the **Steam Subscriber Agreement**, and may be a crime in your jurisdiction.
+🚫 Such unauthorized use can result in severe **legal and criminal penalties**, including the termination of your Steam account.
 💬 Developer Disclaimer:
-The developer **accepts no responsibility** for any use of this software that is outside its intended purpose or is unlawful.
-Please use this software only within **ethical and legal boundaries**.""",
+The developer **accepts no responsibility** for how this software is used. The user is solely responsible for acting within **ethical and legal boundaries**.
+""",
         "warning": "Warning",
         "accept_warning": "You must check the box to continue!",
         "main_title": "Toprak Steam Cracker & Manifest Generator",
@@ -306,17 +312,32 @@ Please use this software only within **ethical and legal boundaries**.""",
         "font_animation_error": "Font animation error: {error}",
         "critical_error_title": "Critical Error",
         "app_start_error": "Application could not be started:\n{error}",
-        "faq_url": "https://rentry.co/topraksteamcrackerSSSeng"
+        "faq_url": "https://rentry.co/topraksteamcrackerSSSeng",
+        "online_fix_btn": "🔗 Apply Online Fix",
+        "online_fix_not_found": "online_fix.py not found in the same directory!",
+        "online_fix_error": "Error while running online fix script:\n{error}",
+        "online_fix_success_msg": "Online Fix script started successfully.",
+        "online_fix_success_status": "✅ ONLINE FIX STARTED"
     }
 }
 
 
+# --- Online Fix Sunucu Yapılandırması (GitHub Raw) ---
+ONLINEFIX_REPO_OWNER = "toprak1224"
+ONLINEFIX_REPO_NAME = "online-fix"
+ONLINEFIX_BRANCH = "main"
+ONLINEFIX_RAW_BASE = f"https://raw.githubusercontent.com/{ONLINEFIX_REPO_OWNER}/{ONLINEFIX_REPO_NAME}/{ONLINEFIX_BRANCH}"
+ONLINEFIX_LIST_URL = "https://raw.githubusercontent.com/toprak1224/online-fix/main/mevcut%20oyunlar.txt"
+ONLINEFIX_DOWNLOAD_URL_TEMPLATE = f"{ONLINEFIX_RAW_BASE}/{'{game_id}'}.rar"
+
+
 try:
     from tkinterdnd2 import TkinterDnD, DND_FILES
+    TKDND_AVAILABLE = True
 except ImportError:
-    class TkinterDnD:
-        pass
+    TkinterDnD = None
     DND_FILES = None
+    TKDND_AVAILABLE = False
 
 class LegalNotice:
     def __init__(self, root):
@@ -413,6 +434,497 @@ class LegalNotice:
         else:
             messagebox.showwarning(self.strings['warning'], self.strings['accept_warning'])
 
+class OnlineFixDownloaderWindow:
+    def __init__(self, parent_app: "SteamManifestTool"):
+        self.parent_app = parent_app
+        self.root = parent_app.root
+        self.window = tk.Toplevel(self.root)
+        self.window.title("🎮 Toprak Online Fix İndirici - Hızlı Batch API")
+        self.window.geometry("1000x700")
+        self.window.configure(bg=parent_app.bg_color)
+        self.window.resizable(False, False)
+
+        self.games = []
+        self.games_with_names = {}
+        self.session = requests.Session()
+        self.cache_file = "game_names_cache.json"
+        self.applist_map = None  # {appid(str): name(str)}
+
+        outer = tk.Frame(self.window, bg=parent_app.bg_color, padx=15, pady=15)
+        outer.pack(fill=tk.BOTH, expand=True)
+
+        title = tk.Label(outer, text="🎮 Toprak Online Fix İndirici", font=("Segoe UI", 18, "bold"), fg=parent_app.text_color, bg=parent_app.bg_color)
+        title.pack(fill=tk.X, pady=(0, 10))
+
+        subtitle = tk.Label(outer, text="⚡ Hızlı Batch API ile 20x Daha Hızlı Oyun İsmi Yükleme", font=("Segoe UI", 10, "italic"), fg=parent_app.primary_button, bg=parent_app.bg_color)
+        subtitle.pack(fill=tk.X, pady=(0, 10))
+
+        content = tk.Frame(outer, bg=parent_app.bg_color)
+        content.pack(fill=tk.BOTH, expand=True)
+
+        left = tk.Frame(content, bg=parent_app.secondary_bg, padx=15, pady=15)
+        left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+
+        right = tk.Frame(content, bg=parent_app.secondary_bg, padx=15, pady=15)
+        right.pack(side=tk.RIGHT, fill=tk.Y)
+
+        header = tk.Frame(left, bg=parent_app.secondary_bg)
+        header.pack(fill=tk.X)
+
+        refresh_btn = tk.Button(header, text="🚀 Oyun Listesini Hızlı Yenile (Batch API)", command=self.refresh_game_list, bg=parent_app.primary_button, fg=parent_app.text_color, font=("Segoe UI", 10, "bold"), relief=tk.FLAT, padx=12, pady=8, cursor="hand2")
+        refresh_btn.pack(side=tk.LEFT)
+        parent_app.add_button_hover_effects(refresh_btn, parent_app.primary_button, parent_app._get_hover_color(parent_app.primary_button))
+
+        self.name_progress = ttk.Progressbar(left, mode="determinate")
+        self.name_progress.pack(fill=tk.X, pady=(10, 10))
+        self.name_progress.pack_forget()
+
+        self.loading_label = tk.Label(left, text="", font=("Segoe UI", 10, "bold"), fg=parent_app.primary_button, bg=parent_app.secondary_bg)
+        self.loading_label.pack(fill=tk.X)
+        self.loading_label.pack_forget()
+
+        list_container = tk.Frame(left, bg=parent_app.secondary_bg)
+        list_container.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
+        scrollbar = ttk.Scrollbar(list_container)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.game_list = tk.Listbox(list_container, font=("Segoe UI", 11), bg=parent_app.highlight_color, fg=parent_app.text_color, selectbackground=parent_app.primary_button, relief=tk.FLAT)
+        self.game_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.game_list.config(yscrollcommand=scrollbar.set)
+        scrollbar.config(command=self.game_list.yview)
+
+        download_btn = tk.Button(left, text="⬇️ Seçili Oyunu İndir", command=self.download_selected_game, bg=parent_app.info_button, fg=parent_app.text_color, font=("Segoe UI", 10, "bold"), relief=tk.FLAT, padx=12, pady=8, cursor="hand2")
+        download_btn.pack(pady=(10, 0))
+        parent_app.add_button_hover_effects(download_btn, parent_app.info_button, parent_app._get_hover_color(parent_app.info_button))
+
+        manual_btn = tk.Button(right, text="🎯 Manuel Steam ID İle İndir", command=self.open_manual_input, bg=parent_app.success_button, fg=parent_app.text_color, font=("Segoe UI", 10, "bold"), relief=tk.FLAT, padx=12, pady=8, cursor="hand2")
+        manual_btn.pack(fill=tk.X)
+        parent_app.add_button_hover_effects(manual_btn, parent_app.success_button, parent_app._get_hover_color(parent_app.success_button))
+
+        howto_btn = tk.Button(right, text="❓ Nasıl Kullanılır?", command=self.show_howto, bg=parent_app.info_button, fg=parent_app.text_color, font=("Segoe UI", 10, "bold"), relief=tk.FLAT, padx=12, pady=8, cursor="hand2")
+        howto_btn.pack(fill=tk.X, pady=(10, 0))
+        parent_app.add_button_hover_effects(howto_btn, parent_app.info_button, parent_app._get_hover_color(parent_app.info_button))
+
+        clear_cache_btn = tk.Button(right, text="🗑️ Önbelleği Temizle", command=self.clear_cache, bg=parent_app.danger_button, fg=parent_app.text_color, font=("Segoe UI", 10, "bold"), relief=tk.FLAT, padx=12, pady=8, cursor="hand2")
+        clear_cache_btn.pack(fill=tk.X, pady=(10, 0))
+        parent_app.add_button_hover_effects(clear_cache_btn, parent_app.danger_button, parent_app._get_hover_color(parent_app.danger_button))
+
+        status_label = tk.Label(right, text="📊 İndirme Durumu", font=("Segoe UI", 12, "bold"), fg=parent_app.text_color, bg=parent_app.secondary_bg)
+        status_label.pack(pady=(15, 5))
+
+        self.status_text = tk.Text(right, height=12, bg=parent_app.highlight_color, fg=parent_app.text_color, font=("Consolas", 10), relief=tk.FLAT)
+        self.status_text.pack(fill=tk.BOTH, expand=False)
+
+        self.progress_bar = ttk.Progressbar(right, mode="determinate")
+        self.progress_bar.pack(fill=tk.X, pady=(10, 0))
+
+        self.append_status("⚡ Hazır - Oyun listesi için 'Yenile'ye tıklayın")
+
+    def show_howto(self):
+        howto_text = (
+            "Online Fix İndirici Kullanımı:\n\n"
+            "1) 'Oyun Listesini Hızlı Yenile' ile listeden oyunu bulun.\n"
+            "2) Oyunu seçip 'Seçili Oyunu İndir'e tıklayın (veya 'Manuel Steam ID İle İndir').\n"
+            "3) İnen RAR dosyasını açın.\n"
+            "4) RAR içindeki tüm dosyaları oyunun yüklü olduğu klasöre kopyalayın.\n"
+            "   - Örn: C:\\Program Files (x86)\\Steam\\steamapps\\common\\<Oyun Adı>\n"
+            "5) Steam'i kapatıp tekrar açın ve oyunu başlatın.\n\n"
+            "Notlar:\n"
+            "- Antivirüs karantinaya alırsa dosyaları geri yükleyin.\n"
+            "- Admin olarak çalıştırmanız önerilir.\n"
+        )
+        try:
+            messagebox.showinfo("Nasıl Kullanılır?", howto_text, parent=self.window)
+        except Exception:
+            messagebox.showinfo("Nasıl Kullanılır?", howto_text)
+
+    def append_status(self, msg: str):
+        try:
+            self.status_text.insert(tk.END, msg + "\n")
+            self.status_text.see(tk.END)
+        except Exception:
+            pass
+
+    def load_cache(self):
+        try:
+            if os.path.exists(self.cache_file):
+                with open(self.cache_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception:
+            return {}
+        return {}
+
+    def save_cache(self, cache: dict):
+        try:
+            with open(self.cache_file, 'w', encoding='utf-8') as f:
+                json.dump(cache, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            self.append_status(f"Cache kaydetme hatası: {e}")
+
+    def refresh_game_list(self):
+        self.append_status("🔄 Online fix listesi çekiliyor...")
+        threading.Thread(target=self._refresh_game_list_thread, daemon=True).start()
+
+    def _refresh_game_list_thread(self):
+        api_url = ONLINEFIX_LIST_URL
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'application/json, text/plain; */*'
+            }
+            response = requests.get(api_url, headers=headers, timeout=20)
+            response.raise_for_status()
+            raw_text = response.text.strip()
+            
+            # Debug: Ham veriyi göster
+            self.root.after(0, lambda: self.append_status(f"🔍 Ham veri (ilk 200 karakter): {raw_text[:200]}"))
+            
+            games = []
+            try:
+                data = response.json()
+                iterable = []
+                if isinstance(data, dict):
+                    if data.get('status') == 'success' and 'files' in data:
+                        files = data['files']
+                        if isinstance(files, dict):
+                            iterable = list(files.keys())
+                        else:
+                            iterable = files
+                    elif 'ids' in data and isinstance(data['ids'], list):
+                        iterable = data['ids']
+                    else:
+                        for key in ('list', 'data', 'games'):
+                            if key in data and isinstance(data[key], list):
+                                iterable = data[key]
+                                break
+                elif isinstance(data, list):
+                    iterable = data
+
+                for item in iterable:
+                    if isinstance(item, (str, int)):
+                        gid = str(item)
+                    elif isinstance(item, dict):
+                        gid = str(item.get('id') or item.get('appid') or item.get('game_id') or '')
+                    else:
+                        gid = ''
+                    if gid.isdigit():
+                        games.append({'game_id': gid})
+
+                if not games and not raw_text:
+                    raise ValueError('Sunucudan boş yanıt alındı')
+            except json.JSONDecodeError:
+                ids = re.findall(r'\b\d{3,}\b', raw_text)
+                for gid in ids:
+                    games.append({'game_id': gid})
+            self.root.after(0, lambda: self._on_games_loaded(games))
+        except Exception as e:
+            err_text = str(e)
+            self.root.after(0, lambda err_text=err_text: self.append_status(f"❌ Oyun listesi yüklenemedi: {err_text}"))
+
+    def _on_games_loaded(self, games):
+        self.games = games
+        self.games_with_names = {}
+        self.game_list.delete(0, tk.END)
+        
+        self.append_status("🔄 Steam API'den oyun isimleri yükleniyor...")
+        
+        # Önce Steam AppList'i yükle, sonra listeyi doldur
+        threading.Thread(target=self._load_names_and_populate, args=(games,), daemon=True).start()
+    
+    def _load_names_and_populate(self, games):
+        try:
+            # Steam AppList'i yükle (ana programdaki gibi)
+            self.root.after(0, lambda: self.append_status("🔄 Steam AppList API yükleniyor..."))
+            self._load_applist_map()
+            
+            if self.applist_map:
+                self.root.after(0, lambda: self.append_status(f"✅ Steam AppList yüklendi! {len(self.applist_map)} oyun bulundu"))
+            else:
+                self.root.after(0, lambda: self.append_status("❌ Steam AppList yüklenemedi"))
+            
+            cache = self.load_cache()
+            
+            # Cache'deki eski "Oyun ID" formatındaki kayıtları temizle
+            cache_updated = False
+            for gid in list(cache.keys()):
+                if cache[gid].startswith(f"Oyun {gid}"):
+                    del cache[gid]
+                    cache_updated = True
+            if cache_updated:
+                self.save_cache(cache)
+                self.root.after(0, lambda: self.append_status("🗑️ Eski cache kayıtları temizlendi"))
+            
+            # Tüm oyunları işle ve UI'yi tek seferde güncelle
+            games_to_add = []
+            found_names = 0
+            for g in games:
+                gid = g['game_id']
+                # Debug: ID'yi kontrol et
+                self.root.after(0, lambda id=gid: self.append_status(f"🔍 ID kontrol ediliyor: {id}"))
+                
+                # Önce cache'den bak (ama "Oyun ID" formatındaki eski kayıtları yoksay)
+                game_name = cache.get(gid)
+                if game_name and not game_name.startswith(f"Oyun {gid}"):
+                    self.root.after(0, lambda id=gid, name=game_name: self.append_status(f"📁 Cache'den bulundu: {id} -> {name}"))
+                else:
+                    game_name = None  # Cache'deki eski format, Steam API'den tekrar al
+                
+                if not game_name and self.applist_map:
+                    # Cache'de yoksa Steam AppList'ten bak
+                    game_name = self.applist_map.get(gid)
+                    if game_name:
+                        found_names += 1
+                        self.root.after(0, lambda id=gid, name=game_name: self.append_status(f"🎮 Steam API'den bulundu: {id} -> {name}"))
+                    else:
+                        # ID'nin AppList'te olup olmadığını kontrol et
+                        self.root.after(0, lambda id=gid: self.append_status(f"❌ Steam API'de bulunamadı: {id}"))
+                        
+                if not game_name:
+                    game_name = f"Oyun {gid}"
+                
+                self.games_with_names[gid] = game_name
+                games_to_add.append(game_name)
+            
+            # UI thread'inde tüm listeyi güncelle
+            def update_ui():
+                for game_name in games_to_add:
+                    self.game_list.insert(tk.END, f"🎮 {game_name}")
+                self.append_status(f"✅ {len(games)} oyun yüklendi! ({found_names} isim Steam API'den bulundu)")
+            
+            self.root.after(0, update_ui)
+        except Exception as e:
+            self.root.after(0, lambda: self.append_status(f"❌ Oyun isimleri yüklenemedi: {str(e)}"))
+
+    def _start_fetching_names_batch(self):
+        self.loading_label.config(text="Batch API ile oyun isimleri hızla yükleniyor... (0/0)")
+        self.loading_label.pack(fill=tk.X)
+        self.name_progress.pack(fill=tk.X)
+        threading.Thread(target=self._fetch_names_thread, daemon=True).start()
+
+    def _fetch_names_thread(self):
+        game_ids = [g['game_id'] for g in self.games]
+        total = len(game_ids)
+        cache = self.load_cache()
+        processed = 0
+
+        def update_progress():
+            percent = int((processed / max(1, total)) * 100)
+            self.name_progress['value'] = percent
+            self.loading_label.config(text=f"Batch API ile oyun isimleri hızla yükleniyor... ({processed}/{total})")
+
+        for gid in list(game_ids):
+            if gid in cache:
+                name = cache[gid]
+                processed += 1
+                self.root.after(0, lambda gid=gid, name=name: self._set_game_name(gid, name))
+                self.root.after(0, update_progress)
+
+        uncached = [gid for gid in game_ids if gid not in cache]
+
+        # Önce Steam AppList üzerinden isim çözümleme (ana programdaki gibi)
+        try:
+            self._load_applist_map()
+            if self.applist_map:
+                still_uncached = []
+                for gid in uncached:
+                    name = self.applist_map.get(gid)
+                    if name:
+                        cache[gid] = name
+                        processed += 1
+                        self.root.after(0, lambda gid=gid, name=name: self._set_game_name(gid, name))
+                        self.root.after(0, update_progress)
+                    else:
+                        still_uncached.append(gid)
+                uncached = still_uncached
+        except Exception as e:
+            err_text = str(e)
+            self.append_status(f"AppList yükleme hatası: {err_text}")
+        batch_size = 20
+        for i in range(0, len(uncached), batch_size):
+            batch = uncached[i:i + batch_size]
+            try:
+                results = self._fetch_steam_batch(batch)
+                for gid in batch:
+                    name = results.get(gid)
+                    if not name:
+                        name = self._get_steamspy_name(gid) or f"Oyun {gid}"
+                    cache[gid] = name
+                    processed += 1
+                    self.root.after(0, lambda gid=gid, name=name: self._set_game_name(gid, name))
+                    self.root.after(0, update_progress)
+                time.sleep(0.3)
+            except Exception as e:
+                self.append_status(f"Batch hatası: {e}")
+                for gid in batch:
+                    name = f"Oyun {gid}"
+                    cache[gid] = name
+                    processed += 1
+                    self.root.after(0, lambda gid=gid, name=name: self._set_game_name(gid, name))
+                    self.root.after(0, update_progress)
+
+        self.save_cache(cache)
+        self.root.after(0, self._names_finished)
+
+    def _load_applist_map(self):
+        if self.applist_map is not None:
+            return
+        url = "https://api.steampowered.com/ISteamApps/GetAppList/v2/"
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+        resp = self.session.get(url, headers=headers, timeout=60)
+        resp.raise_for_status()
+        data = resp.json()
+        apps = data.get('applist', {}).get('apps', [])
+        mapping = {}
+        for item in apps:
+            try:
+                appid = str(item.get('appid'))
+                name = item.get('name')
+                if appid and name:
+                    mapping[appid] = name
+            except Exception:
+                continue
+        self.applist_map = mapping
+
+    def _fetch_steam_batch(self, game_ids):
+        results = {}
+        ids_string = ",".join(game_ids)
+        url = f"https://store.steampowered.com/api/appdetails?appids={ids_string}&l=turkish&filters=basic"
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+        resp = self.session.get(url, headers=headers, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+        for gid in game_ids:
+            try:
+                if gid in data and data[gid].get('success'):
+                    results[gid] = data[gid]['data'].get('name', f"Oyun {gid}")
+            except Exception:
+                results[gid] = f"Oyun {gid}"
+        return results
+
+    def _get_steamspy_name(self, app_id):
+        try:
+            url = f"https://steamspy.com/api.php?request=appdetails&appid={app_id}"
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            resp = self.session.get(url, headers=headers, timeout=8)
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get('name')
+        except Exception:
+            return None
+
+    def _set_game_name(self, game_id, game_name):
+        self.games_with_names[game_id] = game_name
+        for i in range(self.game_list.size()):
+            text = self.game_list.get(i)
+            if f"ID: {game_id}" in text or text.startswith(f"🎮 Oyun ID: {game_id}"):
+                self.game_list.delete(i)
+                self.game_list.insert(i, f"🎮 {game_name}")
+                break
+
+    def _names_finished(self):
+        self.append_status("✅ Batch API ile oyun isimleri yüklendi! (game_names_cache.json güncellendi)")
+        self.name_progress.pack_forget()
+        self.loading_label.pack_forget()
+
+    def download_selected_game(self):
+        sel = self.game_list.curselection()
+        if not sel:
+            messagebox.showwarning("Uyarı", "Lütfen bir oyun seçin!", parent=self.window)
+            return
+        index = sel[0]
+        # Liste, self.games sırasıyla dolduruluyor; seçilen index'ten game_id alınır
+        try:
+            game_id = self.games[index]['game_id']
+        except Exception:
+            messagebox.showerror("Hata", "Geçersiz seçim!", parent=self.window)
+            return
+        game_name = self.games_with_names.get(game_id, f"Oyun {game_id}")
+        self._start_download(game_id, game_name)
+
+    def open_manual_input(self):
+        game_id = simpledialog.askstring("Manuel Game ID Girişi", "Lütfen Steam ID girin:", parent=self.window)
+        if not game_id:
+            return
+        game_id = game_id.strip()
+        if not game_id.isdigit():
+            messagebox.showwarning("Hata", "Lütfen geçerli bir sayısal Steam ID girin!", parent=self.window)
+            return
+        cache = self.load_cache()
+        game_name = cache.get(game_id, f"Oyun {game_id}")
+        self._start_download(game_id, game_name)
+
+    def _start_download(self, game_id, game_name):
+        self.progress_bar['value'] = 0
+        self.append_status(f"🚀 '{game_name}' (ID: {game_id}) indirme başlatıldı...")
+        threading.Thread(target=self._download_thread, args=(game_id, game_name), daemon=True).start()
+
+    def _download_thread(self, game_id, game_name):
+        desktop_path = os.path.join(os.path.expanduser('~'), 'Desktop')
+        download_url = ONLINEFIX_DOWNLOAD_URL_TEMPLATE.format(game_id=game_id)
+        try:
+            self.root.after(0, lambda: self.append_status(f"'{game_name}' indiriliyor..."))
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+            response = self.session.get(download_url, headers=headers, stream=True, timeout=30)
+            response.raise_for_status()
+
+            file_name = None
+            cd = response.headers.get('content-disposition')
+            if cd:
+                m = re.search(r'filename="?([^";]+)"?', cd)
+                if m:
+                    file_name = m.group(1)
+            if not file_name:
+                # Varsayılan olarak .rar uzantısı ile game_id adına kaydet
+                file_name = f"{game_id}.rar"
+
+            file_path = os.path.join(desktop_path, file_name)
+            total_size = int(response.headers.get('content-length', 0))
+            downloaded = 0
+            with open(file_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if not chunk:
+                        continue
+                    f.write(chunk)
+                    if total_size:
+                        downloaded += len(chunk)
+                        percent = int(100 * downloaded / total_size)
+                        self.root.after(0, lambda v=percent: self.progress_bar.configure(value=v))
+
+            if file_name.lower().endswith('.zip'):
+                extract_folder = os.path.join(desktop_path, re.sub(r'[<>:"/\\|?*]', '_', f"{game_name}_Extracted"))
+                os.makedirs(extract_folder, exist_ok=True)
+                try:
+                    with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                        zip_ref.extractall(extract_folder)
+                    try:
+                        os.remove(file_path)
+                        msg = f"{game_name} başarıyla indirildi ve çıkarıldı.\n\nKonum: {extract_folder}\n\nZip dosyası silindi."
+                    except Exception:
+                        msg = f"{game_name} başarıyla indirildi ve çıkarıldı.\n\nKonum: {extract_folder}\n\nZip dosyası silinemedi."
+                    self.root.after(0, lambda: [self.progress_bar.configure(value=100), self.append_status("✅ İndirme Tamamlandı!"), messagebox.showinfo("İndirme Tamamlandı", msg, parent=self.window)])
+                except Exception as e:
+                    err_text = str(e)
+                    self.root.after(0, lambda err_text=err_text: messagebox.showerror("Hata", f"Zip dosyası çıkarılamadı: {err_text}", parent=self.window))
+            else:
+                self.root.after(0, lambda: [self.progress_bar.configure(value=100), self.append_status("✅ İndirme Tamamlandı!"), messagebox.showinfo("İndirme Tamamlandı", f"{game_name} masaüstüne indirildi!\n\nKonum: {file_path}", parent=self.window)])
+        except requests.exceptions.HTTPError as e:
+            status_code = getattr(e.response, 'status_code', 'unknown')
+            self.root.after(0, lambda status_code=status_code: messagebox.showerror("Hata", f"Sunucu hatası: {status_code}. Bu oyun için dosya bulunamadı.", parent=self.window))
+        except Exception as e:
+            err_text = str(e)
+            self.root.after(0, lambda err_text=err_text: messagebox.showerror("Hata", f"İndirme hatası: {err_text}", parent=self.window))
+
+    def clear_cache(self):
+        try:
+            if os.path.exists(self.cache_file):
+                os.remove(self.cache_file)
+                self.append_status("🗑️ Önbellek başarıyla temizlendi!")
+                messagebox.showinfo("Önbellek Temizlendi", "Oyun isimleri önbelleği temizlendi.", parent=self.window)
+            else:
+                messagebox.showinfo("Bilgi", "Temizlenecek önbellek dosyası bulunamadı.", parent=self.window)
+        except Exception as e:
+            self.append_status(f"❌ Önbellek temizleme hatası: {e}")
+            messagebox.showerror("Hata", f"Önbellek temizlenirken hata: {e}", parent=self.window)
+
 class SteamManifestTool:
     def __init__(self, root, lang_code='tr'):
         self.root = root
@@ -475,6 +987,7 @@ class SteamManifestTool:
         self.create_steamdb_button(main_frame)
         self.create_sss_button(main_frame)
         self.create_zip_upload_button(main_frame)
+        self.create_online_fix_button(main_frame)
         self.create_show_installed_games_button(main_frame)
         self.create_about_button(main_frame)
 
@@ -963,19 +1476,9 @@ class SteamManifestTool:
     def show_game_search(self):
         search_window = tk.Toplevel(self.root)
         search_window.title(self.strings['game_search_title'])
+        search_window.geometry("800x800")
         search_window.configure(bg=self.secondary_bg)
         search_window.resizable(False, False)
-
-        search_window.update_idletasks()
-        main_x = self.root.winfo_x()
-        main_y = self.root.winfo_y()
-        main_width = self.root.winfo_width()
-        main_height = self.root.winfo_height()
-        win_width = 800
-        win_height = 800
-        x = main_x + (main_width // 2) - (win_width // 2)
-        y = main_y + (main_height // 2) - (win_height // 2)
-        search_window.geometry(f"{win_width}x{win_height}+{x}+{y}")
 
         tk.Label(search_window, text=self.strings['search_steam_game_header'], font=("Segoe UI", 16, "bold"),
                 fg=self.text_color, bg=self.secondary_bg).pack(pady=10)
@@ -1020,11 +1523,14 @@ class SteamManifestTool:
                 url = f"https://cdn.cloudflare.steamstatic.com/steam/apps/{app_id}/header.jpg"
                 response = requests.get(url, timeout=10)
                 response.raise_for_status()
-                image = Image.open(BytesIO(response.content))
-                image = image.resize((400, 190))
-                photo = ImageTk.PhotoImage(image)
-                cover_label.config(image=photo)
-                cover_label.image = photo
+                if PIL_AVAILABLE:
+                    image = Image.open(BytesIO(response.content))
+                    image = image.resize((400, 190))
+                    photo = ImageTk.PhotoImage(image)
+                    cover_label.config(image=photo)
+                    cover_label.image = photo
+                else:
+                    cover_label.config(text=self.strings.get('cover_load_error', 'Kapak yüklenemedi'))
             except:
                 cover_label.config(image="", text=self.strings['cover_load_error'])
 
@@ -1119,8 +1625,7 @@ class SteamManifestTool:
     def create_animated_background(self):
         self.bg_canvas = tk.Canvas(self.root, bg=self.bg_color, highlightthickness=0)
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
-        # self.bg_canvas.lower() Removed
-        
+
         self.particles = []
         for i in range(20):
             x = (i * 45) % 900
@@ -1391,6 +1896,7 @@ class SteamManifestTool:
         self.zip_btn.configure(state='disabled')
         self.installed_games_btn.configure(state='disabled')
         self.about_btn.configure(state='disabled')
+        self.online_fix_btn.configure(state='disabled')
 
 
     def hide_progress(self):
@@ -1408,6 +1914,7 @@ class SteamManifestTool:
         self.zip_btn.configure(state='normal')
         self.installed_games_btn.configure(state='normal')
         self.about_btn.configure(state='normal')
+        self.online_fix_btn.configure(state='normal')
 
 
     def select_steam_folder(self):
@@ -1677,10 +2184,32 @@ class SteamManifestTool:
     def show_success_message(self, message):
         self.animate_status_message(f"✅ {message}", self.success_button)
 
+    # --- Online Fix (entegre Tkinter penceresi) ---
+    def create_online_fix_button(self, parent):
+        self.online_fix_btn = tk.Button(
+            parent,
+            text=self.strings['online_fix_btn'],
+            command=self.open_online_fix_window,
+            bg=self.info_button,
+            fg=self.text_color,
+            font=('Segoe UI', 10, 'bold'),
+            relief=tk.FLAT,
+            bd=0,
+            padx=15,
+            pady=8,
+            cursor='hand2'
+        )
+        self.online_fix_btn.place(relx=0.37, rely=0.95)
+        self.add_button_hover_effects(self.online_fix_btn, self.info_button, self._get_hover_color(self.info_button))
+
+    def open_online_fix_window(self):
+        OnlineFixDownloaderWindow(self)
+    # --- Online Fix sonu ---
+
+
 def main():
     try:
-        ctypes.windll.shcore.SetProcessDpiAwareness(1)
-        if 'TkinterDnD' in globals():
+        if TKDND_AVAILABLE and hasattr(TkinterDnD, 'Tk'):
             root = TkinterDnD.Tk()
         else:
             root = tk.Tk()
@@ -1728,4 +2257,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
