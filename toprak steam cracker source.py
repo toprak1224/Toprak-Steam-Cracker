@@ -2,7 +2,7 @@ import webbrowser
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, simpledialog
 try:
-    # Pillow paketiyle gelir
+    
     from PIL import Image, ImageTk
     PIL_AVAILABLE = True
 except Exception:
@@ -26,6 +26,11 @@ import json
 import re
 
 
+CURRENT_VERSION = "4.1"  
+VERSION_CHECK_URL = "https://raw.githubusercontent.com/toprak1224/Toprak-Steam-Cracker/refs/heads/main/verison"
+GITHUB_RELEASES_URL = "https://github.com/toprak1224/Toprak-Steam-Cracker/releases"
+
+
 LANGUAGES = {
     'tr': {
         "legal_title": "Yasal Uyarı",
@@ -45,7 +50,7 @@ Bu yazılım yalnızca **eğitimsel ve deneysel** amaçlarla geliştirilmiştir.
 Steam platformuna ait içeriklerin **lisans satın alınmadan kullanılması**;
 
 - **5846 Sayılı Fikir ve Sanat Eserleri Kanunu**,
-- **Türk Ceza Kanunu’nun 135., 136. ve 137. maddeleri**,
+- **Türk Ceza Kanunu'nun 135., 136. ve 137. maddeleri**,
 - ve **uluslararası fikri mülkiyet yasaları** kapsamında **suç teşkil eder**.
 
 🚫 Bu tür yasa dışı kullanım; **hukuki yaptırımların yanı sıra cezai sorumluluklara** da neden olabilir.
@@ -322,7 +327,7 @@ The developer **accepts no responsibility** for how this software is used. The u
 }
 
 
-# --- Online Fix Sunucu Yapılandırması (GitHub Raw) ---
+
 ONLINEFIX_REPO_OWNER = "toprak1224"
 ONLINEFIX_REPO_NAME = "online-fix"
 ONLINEFIX_BRANCH = "main"
@@ -448,7 +453,7 @@ class OnlineFixDownloaderWindow:
         self.games_with_names = {}
         self.session = requests.Session()
         self.cache_file = "game_names_cache.json"
-        self.applist_map = None  # {appid(str): name(str)}
+        self.applist_map = None  
 
         outer = tk.Frame(self.window, bg=parent_app.bg_color, padx=15, pady=15)
         outer.pack(fill=tk.BOTH, expand=True)
@@ -575,7 +580,7 @@ class OnlineFixDownloaderWindow:
             response.raise_for_status()
             raw_text = response.text.strip()
             
-            # Debug: Ham veriyi göster
+            
             self.root.after(0, lambda: self.append_status(f"🔍 Ham veri (ilk 200 karakter): {raw_text[:200]}"))
             
             games = []
@@ -627,12 +632,12 @@ class OnlineFixDownloaderWindow:
         
         self.append_status("🔄 Steam API'den oyun isimleri yükleniyor...")
         
-        # Önce Steam AppList'i yükle, sonra listeyi doldur
+        
         threading.Thread(target=self._load_names_and_populate, args=(games,), daemon=True).start()
     
     def _load_names_and_populate(self, games):
         try:
-            # Steam AppList'i yükle (ana programdaki gibi)
+            
             self.root.after(0, lambda: self.append_status("🔄 Steam AppList API yükleniyor..."))
             self._load_applist_map()
             
@@ -643,7 +648,7 @@ class OnlineFixDownloaderWindow:
             
             cache = self.load_cache()
             
-            # Cache'deki eski "Oyun ID" formatındaki kayıtları temizle
+            
             cache_updated = False
             for gid in list(cache.keys()):
                 if cache[gid].startswith(f"Oyun {gid}"):
@@ -653,29 +658,29 @@ class OnlineFixDownloaderWindow:
                 self.save_cache(cache)
                 self.root.after(0, lambda: self.append_status("🗑️ Eski cache kayıtları temizlendi"))
             
-            # Tüm oyunları işle ve UI'yi tek seferde güncelle
+           
             games_to_add = []
             found_names = 0
             for g in games:
                 gid = g['game_id']
-                # Debug: ID'yi kontrol et
+                
                 self.root.after(0, lambda id=gid: self.append_status(f"🔍 ID kontrol ediliyor: {id}"))
                 
-                # Önce cache'den bak (ama "Oyun ID" formatındaki eski kayıtları yoksay)
+                
                 game_name = cache.get(gid)
                 if game_name and not game_name.startswith(f"Oyun {gid}"):
                     self.root.after(0, lambda id=gid, name=game_name: self.append_status(f"📁 Cache'den bulundu: {id} -> {name}"))
                 else:
-                    game_name = None  # Cache'deki eski format, Steam API'den tekrar al
+                    game_name = None  
                 
                 if not game_name and self.applist_map:
-                    # Cache'de yoksa Steam AppList'ten bak
+                    
                     game_name = self.applist_map.get(gid)
                     if game_name:
                         found_names += 1
                         self.root.after(0, lambda id=gid, name=game_name: self.append_status(f"🎮 Steam API'den bulundu: {id} -> {name}"))
                     else:
-                        # ID'nin AppList'te olup olmadığını kontrol et
+                        
                         self.root.after(0, lambda id=gid: self.append_status(f"❌ Steam API'de bulunamadı: {id}"))
                         
                 if not game_name:
@@ -684,7 +689,7 @@ class OnlineFixDownloaderWindow:
                 self.games_with_names[gid] = game_name
                 games_to_add.append(game_name)
             
-            # UI thread'inde tüm listeyi güncelle
+            
             def update_ui():
                 for game_name in games_to_add:
                     self.game_list.insert(tk.END, f"🎮 {game_name}")
@@ -720,7 +725,7 @@ class OnlineFixDownloaderWindow:
 
         uncached = [gid for gid in game_ids if gid not in cache]
 
-        # Önce Steam AppList üzerinden isim çözümleme (ana programdaki gibi)
+        
         try:
             self._load_applist_map()
             if self.applist_map:
@@ -831,7 +836,7 @@ class OnlineFixDownloaderWindow:
             messagebox.showwarning("Uyarı", "Lütfen bir oyun seçin!", parent=self.window)
             return
         index = sel[0]
-        # Liste, self.games sırasıyla dolduruluyor; seçilen index'ten game_id alınır
+        
         try:
             game_id = self.games[index]['game_id']
         except Exception:
@@ -873,7 +878,7 @@ class OnlineFixDownloaderWindow:
                 if m:
                     file_name = m.group(1)
             if not file_name:
-                # Varsayılan olarak .rar uzantısı ile game_id adına kaydet
+                
                 file_name = f"{game_id}.rar"
 
             file_path = os.path.join(desktop_path, file_name)
@@ -1047,7 +1052,7 @@ class SteamManifestTool:
 
         tk.Label(about_window, text="Toprak Steam Cracker",
                  font=("Segoe UI", 16, "bold"), fg=self.text_color, bg=self.bg_color).pack(pady=10)
-        tk.Label(about_window, text=self.strings['version'],
+        tk.Label(about_window, text=(f"Sürüm: V{CURRENT_VERSION}" if self.strings.get('legal_title') == 'Yasal Uyarı' else f"Version: V{CURRENT_VERSION}"),
                  font=("Segoe UI", 10), fg=self.text_color, bg=self.bg_color).pack(pady=2)
         tk.Label(about_window, text=self.strings['developer'],
                  font=("Segoe UI", 10), fg=self.text_color, bg=self.bg_color).pack(pady=2)
@@ -1059,6 +1064,13 @@ class SteamManifestTool:
                                 font=("Segoe UI", 10, "underline"), fg=self.primary_button, bg=self.bg_color, cursor="hand2")
         github_label.pack(pady=5)
         github_label.bind("<Button-1>", lambda e: webbrowser.open("https://github.com/SteamAutoCracks/ManifestHub"))
+
+        discord_btn = tk.Button(about_window, text="💬 Discord",
+                                command=lambda: webbrowser.open("https://discord.gg/nTA3yfmTyu"),
+                                bg=self.info_button, fg=self.text_color, font=("Segoe UI", 10, "bold"),
+                                relief=tk.FLAT, padx=20, pady=8, cursor='hand2')
+        self.add_button_hover_effects(discord_btn, self.info_button, self._get_hover_color(self.info_button), original_padx=20, original_pady=8)
+        discord_btn.pack(pady=(10, 0))
 
         message_label = tk.Label(about_window, text=self.strings['about_disclaimer'],
                  font=("Segoe UI", 9), fg=self.text_color, bg=self.bg_color, wraplength=400, justify=tk.CENTER)
@@ -2184,7 +2196,7 @@ class SteamManifestTool:
     def show_success_message(self, message):
         self.animate_status_message(f"✅ {message}", self.success_button)
 
-    # --- Online Fix (entegre Tkinter penceresi) ---
+   
     def create_online_fix_button(self, parent):
         self.online_fix_btn = tk.Button(
             parent,
@@ -2204,7 +2216,7 @@ class SteamManifestTool:
 
     def open_online_fix_window(self):
         OnlineFixDownloaderWindow(self)
-    # --- Online Fix sonu ---
+    
 
 
 def main():
@@ -2216,43 +2228,198 @@ def main():
 
         root.withdraw()
 
-        legal_window = tk.Toplevel(root)
-        legal = LegalNotice(legal_window)
-        legal_window.wait_window(legal_window)
         
-        
-        if not hasattr(legal, 'var') or legal.var.get() != 1:
-            root.destroy()
-            return
-        
-        
-        selected_language = legal.selected_lang
-
-        root.deiconify()
-        
-        system32_path = os.path.join(os.environ['SystemRoot'], 'System32')
-        if system32_path not in os.environ['PATH']:
-            os.environ['PATH'] = system32_path + ';' + os.environ['PATH']
-
-        app = SteamManifestTool(root, lang_code=selected_language)
-
-        root.update_idletasks()
-        width = root.winfo_width()
-        height = root.winfo_height()
-        x = (root.winfo_screenwidth() // 2) - (width // 2)
-        y = (root.winfo_screenheight() // 2) - (height // 2)
-        root.geometry(f'{width}x{height}+{x}+{y}')
+        UpdateChecker(root, is_turkish=True).check_for_updates(on_complete=lambda: _show_legal_then_main(root))
 
         root.mainloop()
 
     except Exception as e:
         error_root = tk.Tk()
         error_root.withdraw()
-        
-        lang = LANGUAGES.get('tr', LANGUAGES['en']) 
+        lang = LANGUAGES.get('tr', LANGUAGES['en'])
         messagebox.showerror(lang['critical_error_title'], lang['app_start_error'].format(error=str(e)), parent=error_root)
         error_root.destroy()
         raise
+
+def _show_legal_then_main(root):
+    legal_window = tk.Toplevel(root)
+    legal = LegalNotice(legal_window)
+    legal_window.wait_window(legal_window)
+
+    if not hasattr(legal, 'var') or legal.var.get() != 1:
+        root.destroy()
+        return
+
+    selected_language = legal.selected_lang
+    root.deiconify()
+
+    system32_path = os.path.join(os.environ['SystemRoot'], 'System32')
+    if system32_path not in os.environ['PATH']:
+        os.environ['PATH'] = system32_path + ';' + os.environ['PATH']
+
+    app = SteamManifestTool(root, lang_code=selected_language)
+
+    root.update_idletasks()
+    width = root.winfo_width()
+    height = root.winfo_height()
+    x = (root.winfo_screenwidth() // 2) - (width // 2)
+    y = (root.winfo_screenheight() // 2) - (height // 2)
+    root.geometry(f'{width}x{height}+{x}+{y}')
+
+class UpdateChecker:
+    def __init__(self, parent, is_turkish: bool):
+        self.parent = parent
+        self.is_turkish = is_turkish
+        self.update_window = None
+        self.update_label = None
+        self.update_progress = None
+        self.on_complete = None
+
+    def check_for_updates(self, on_complete=None):
+        self.on_complete = on_complete
+        self._show_progress()
+        threading.Thread(target=self._thread_check, daemon=True).start()
+
+    def _show_progress(self):
+        window_title = "Güncelleme Kontrolü" if self.is_turkish else "Update Check"
+        checking_text = "🔄 Program güncellemeleri kontrol ediliyor" if self.is_turkish else "🔄 Checking for updates"
+        version_text = (f"Mevcut Sürüm: V{CURRENT_VERSION}" if self.is_turkish else f"Current Version: V{CURRENT_VERSION}")
+
+        self.update_window = tk.Toplevel(self.parent)
+        self.update_window.title(window_title)
+        self.update_window.geometry("450x180")
+        self.update_window.configure(bg='#0a0a0a')
+        self.update_window.resizable(False, False)
+        self.update_window.attributes('-topmost', True)
+
+        self.update_window.update_idletasks()
+        width = self.update_window.winfo_width()
+        height = self.update_window.winfo_height()
+        x = (self.update_window.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.update_window.winfo_screenheight() // 2) - (height // 2)
+        self.update_window.geometry(f'{width}x{height}+{x}+{y}')
+
+        main_frame = tk.Frame(self.update_window, bg='#0a0a0a', padx=30, pady=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        self.update_label = tk.Label(main_frame, text=checking_text, font=("Segoe UI", 12, "bold"), fg='#4a90e2', bg='#0a0a0a')
+        self.update_label.pack(pady=(10, 20))
+
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure("Update.Horizontal.TProgressbar", background='#4a90e2', troughcolor='#1a1a1a', borderwidth=0, lightcolor='#4a90e2', darkcolor='#4a90e2', thickness=10)
+
+        self.update_progress = ttk.Progressbar(main_frame, style="Update.Horizontal.TProgressbar", mode='indeterminate')
+        self.update_progress.pack(fill=tk.X, pady=(0, 15))
+        self.update_progress.start(8)
+
+        tk.Label(main_frame, text=version_text, font=("Segoe UI", 9), fg='#888888', bg='#0a0a0a').pack()
+
+        self._animate_text(checking_text)
+
+    def _animate_text(self, base_text: str):
+        try:
+            if self.update_window and self.update_window.winfo_exists():
+                dots = '.' * (int(time.time() * 2) % 4)
+                self.update_label.config(text=base_text + dots)
+                self.parent.after(500, lambda: self._animate_text(base_text))
+        except Exception:
+            pass
+
+    def _thread_check(self):
+        try:
+            time.sleep(1.5)
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            response = requests.get(VERSION_CHECK_URL, headers=headers, timeout=10)
+            response.raise_for_status()
+            remote_version = response.text.strip()
+            needs_update = self._is_newer(remote_version, CURRENT_VERSION)
+            self.parent.after(0, lambda: self._finish_check(needs_update, remote_version))
+        except Exception as e:
+            self.parent.after(0, lambda: self._finish_check(None, None))
+
+    def _is_newer(self, remote: str, current: str) -> bool:
+        try:
+            r = [int(x) for x in remote.split('.')]
+            c = [int(x) for x in current.split('.')]
+            max_len = max(len(r), len(c))
+            r += [0] * (max_len - len(r))
+            c += [0] * (max_len - len(c))
+            return r > c
+        except Exception:
+            return False
+
+    def _finish_check(self, needs_update: bool | None, remote_version: str | None):
+        if self.update_progress:
+            try:
+                self.update_progress.stop()
+            except Exception:
+                pass
+
+        if needs_update is None:
+            
+            self._continue()
+            return
+
+        
+        try:
+            if not (self.update_window and self.update_window.winfo_exists()):
+                self.update_window = tk.Toplevel(self.parent)
+                self.update_window.configure(bg='#0a0a0a')
+            for child in self.update_window.winfo_children():
+                child.destroy()
+        except Exception:
+            pass
+
+        title_text = ("🆕 Güncelleme Mevcut" if self.is_turkish else "🆕 Update Available") if needs_update else ("✅ Sürüm Güncel" if self.is_turkish else "✅ Up To Date")
+        self.update_window.title(title_text)
+        self.update_window.geometry("520x220")
+        self.update_window.resizable(False, False)
+        self.update_window.attributes('-topmost', True)
+
+        self.update_window.update_idletasks()
+        width = self.update_window.winfo_width()
+        height = self.update_window.winfo_height()
+        x = (self.update_window.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.update_window.winfo_screenheight() // 2) - (height // 2)
+        self.update_window.geometry(f'{width}x{height}+{x}+{y}')
+
+        frame = tk.Frame(self.update_window, bg='#0a0a0a', padx=24, pady=20)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        if needs_update:
+            msg = (f"Yeni sürüm mevcut: V{remote_version}\nMevcut sürümünüz: V{CURRENT_VERSION}\n\nGüncellemek için GitHub sayfasına gidebilirsiniz.") if self.is_turkish else (f"New version available: V{remote_version}\nYour version: V{CURRENT_VERSION}\n\nYou can visit GitHub to update.")
+            tk.Label(frame, text=msg, font=("Segoe UI", 11), fg='#ffffff', bg='#0a0a0a', justify=tk.LEFT).pack(anchor=tk.W)
+
+            btns = tk.Frame(frame, bg='#0a0a0a')
+            btns.pack(fill=tk.X, pady=(16, 0))
+
+            update_text = "🔗 Güncelle" if self.is_turkish else "🔗 Update"
+            later_text = "⏰ Ertele" if self.is_turkish else "⏰ Later"
+
+            update_btn = tk.Button(btns, text=update_text, command=lambda: [webbrowser.open(GITHUB_RELEASES_URL), self._continue()], bg='#50c878', fg='#ffffff', relief=tk.FLAT, padx=18, pady=8, font=("Segoe UI", 10, 'bold'), cursor='hand2')
+            update_btn.pack(side=tk.LEFT, padx=(0, 10))
+
+            later_btn = tk.Button(btns, text=later_text, command=self._continue, bg='#6a5acd', fg='#ffffff', relief=tk.FLAT, padx=18, pady=8, font=("Segoe UI", 10, 'bold'), cursor='hand2')
+            later_btn.pack(side=tk.LEFT)
+        else:
+            info = (f"Sürüm güncel!\nMevcut Sürüm: V{CURRENT_VERSION}") if self.is_turkish else (f"Version is up to date!\nCurrent Version: V{CURRENT_VERSION}")
+            tk.Label(frame, text=info, font=("Segoe UI", 11), fg='#ffffff', bg='#0a0a0a', justify=tk.CENTER).pack()
+            ok_text = "Devam" if self.is_turkish else "Continue"
+            ok_btn = tk.Button(frame, text=ok_text, command=self._continue, bg='#4a90e2', fg='#ffffff', relief=tk.FLAT, padx=18, pady=8, font=("Segoe UI", 10, 'bold'), cursor='hand2')
+            ok_btn.pack(pady=(16, 0))
+
+    def _continue(self):
+        try:
+            if self.update_window and self.update_window.winfo_exists():
+                self.update_window.destroy()
+        except Exception:
+            pass
+        if callable(self.on_complete):
+            try:
+                self.on_complete()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
