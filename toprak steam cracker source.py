@@ -25,10 +25,468 @@ import winreg
 import json
 import re
 
-
-CURRENT_VERSION = "4.1"  
+VERSION = "4.2"
 VERSION_CHECK_URL = "https://raw.githubusercontent.com/toprak1224/Toprak-Steam-Cracker/refs/heads/main/verison"
-GITHUB_RELEASES_URL = "https://github.com/toprak1224/Toprak-Steam-Cracker/releases"
+STEAM_APP_LIST_CACHE_FILE = "steam_app_list_cache.json"
+STEAM_APP_LIST_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                  'AppleWebKit/537.36 (KHTML, like Gecko) '
+                  'Chrome/120.0.0.0 Safari/537.36'
+}
+
+STEAM_APP_LIST_GITHUB_SOURCES = [
+    {
+        "name": "github_games",
+        "url": "https://raw.githubusercontent.com/jsnli/steamappidlist/refs/heads/master/data/games_appid.json",
+        "name_suffix": "",
+    },
+    {
+        "name": "github_dlc",
+        "url": "https://raw.githubusercontent.com/jsnli/steamappidlist/refs/heads/master/data/dlc_appid.json",
+        "name_suffix": " (DLC)",
+    },
+]
+
+
+def _extract_steam_web_api_apps(payload):
+    if isinstance(payload, dict):
+        return payload.get('applist', {}).get('apps', [])
+    return []
+
+
+def _extract_steamcmd_apps(payload):
+    if not isinstance(payload, dict):
+        return []
+    if isinstance(payload.get('apps'), list):
+        return payload['apps']
+    data = payload.get('data')
+    if isinstance(data, dict):
+        if isinstance(data.get('apps'), list):
+            return data['apps']
+        if isinstance(data.get('list'), list):
+            return data['list']
+    return []
+
+
+STEAM_APP_LIST_SOURCES = [
+    {
+        "name": "steam_web_api",
+        "url": "https://api.steampowered.com/ISteamApps/GetAppList/v2/",
+        "extract": _extract_steam_web_api_apps,
+        "timeout": 45,
+    },
+    {
+        "name": "steamcmd_api",
+        "url": "https://api.steamcmd.net/v1/apps",
+        "extract": _extract_steamcmd_apps,
+        "timeout": 45,
+    },
+]
+
+
+def _normalize_app_entries(entries):
+    normalized = {}
+    keys = ('appid', 'app_id', 'appID', 'id', 'appId', 'game_id')
+    name_keys = ('name', 'Name', 'title', 'app_name', 'AppName', 'label')
+
+    for item in entries or []:
+        app_id = None
+        name = ""
+
+        if isinstance(item, dict):
+            for key in keys:
+                if key in item and item[key]:
+                    app_id = item[key]
+                    break
+            for key in name_keys:
+                if key in item and item[key]:
+                    name = item[key]
+                    break
+        elif isinstance(item, (int, float)):
+            app_id = int(item)
+        elif isinstance(item, str) and item.isdigit():
+            app_id = item
+
+        if app_id is None:
+            continue
+
+        app_id = str(app_id)
+        if not app_id.isdigit():
+            continue
+
+        if not name:
+            name = normalized.get(app_id, f"App {app_id}")
+
+        normalized[app_id] = name
+
+    ordered = sorted(normalized.items(), key=lambda pair: int(pair[0]))
+    return [{"appid": app_id, "name": name} for app_id, name in ordered]
+
+
+def _load_cached_app_list():
+    try:
+        if os.path.exists(STEAM_APP_LIST_CACHE_FILE):
+            with open(STEAM_APP_LIST_CACHE_FILE, 'r', encoding='utf-8') as cache_file:
+                cached = json.load(cache_file)
+            if isinstance(cached, list):
+                valid = [entry for entry in cached if 'appid' in entry and 'name' in entry]
+                if valid:
+                    return valid
+    except Exception:
+        pass
+    return []
+
+
+def _save_app_list_cache(apps):
+    try:
+        with open(STEAM_APP_LIST_CACHE_FILE, 'w', encoding='utf-8') as cache_file:
+            json.dump(apps, cache_file, ensure_ascii=False)
+    except Exception:
+        pass
+
+
+def fetch_latest_version(session=None):
+    session = session or requests.Session()
+    response = session.get(VERSION_CHECK_URL, headers=STEAM_APP_LIST_HEADERS, timeout=15)
+    response.raise_for_status()
+    return response.text.strip()
+
+
+def _fetch_github_app_lists(session):
+    combined = []
+    errors = []
+
+    for source in STEAM_APP_LIST_GITHUB_SOURCES:
+        try:
+            response = session.get(source["url"], headers=STEAM_APP_LIST_HEADERS, timeout=60)
+            response.raise_for_status()
+            data = response.json()
+            normalized = _normalize_app_entries(data)
+            suffix = source.get("name_suffix", "")
+            if suffix:
+                for entry in normalized:
+                    entry['name'] = f"{entry.get('name', '')}{suffix}".strip()
+            combined.extend(normalized)
+        except Exception as exc:
+            errors.append(f"{source['name']}: {exc}")
+
+    if combined:
+        unique = {}
+        for entry in combined:
+            app_id = entry.get('appid')
+            if not app_id:
+                continue
+            unique[app_id] = entry
+        return list(unique.values())
+
+    if errors:
+        raise RuntimeError("; ".join(errors))
+    return []
+
+
+def fetch_steam_app_list(session=None):
+    session = session or requests.Session()
+    errors = []
+
+    try:
+        github_apps = _fetch_github_app_lists(session)
+        if github_apps:
+            _save_app_list_cache(github_apps)
+            return github_apps
+    except Exception as exc:
+        errors.append(f"github_sources: {exc}")
+
+    for source in STEAM_APP_LIST_SOURCES:
+        try:
+            response = session.get(
+                source["url"],
+                headers=STEAM_APP_LIST_HEADERS,
+                timeout=source.get("timeout", 30)
+            )
+            response.raise_for_status()
+            raw_entries = source["extract"](response.json())
+            apps = _normalize_app_entries(raw_entries)
+            if apps:
+                _save_app_list_cache(apps)
+                return apps
+        except Exception as exc:
+            errors.append(f"{source['name']}: {exc}")
+
+    cached = _load_cached_app_list()
+    if cached:
+        return cached
+
+    raise RuntimeError("Steam oyun listesi alınamadı. Denenen kaynaklar: " + "; ".join(errors))
+
+
+def show_version_check(root, session=None):
+    overlay = tk.Toplevel(root)
+    overlay.title("🔄 Sürüm Kontrolü // Version Check")
+    overlay.configure(bg='#050505')
+    overlay.geometry("420x220")
+    overlay.resizable(False, False)
+    overlay.transient(root)
+    overlay.grab_set()
+    overlay.lift()
+    try:
+        overlay.attributes('-topmost', True)
+    except Exception:
+        pass
+
+    root.update_idletasks()
+    overlay.update_idletasks()
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    width = overlay.winfo_width()
+    height = overlay.winfo_height()
+    x = (screen_width // 2) - (width // 2)
+    y = (screen_height // 2) - (height // 2)
+    overlay.geometry(f"{width}x{height}+{x}+{y}")
+
+    frame = tk.Frame(overlay, bg='#050505', padx=30, pady=30)
+    frame.pack(fill=tk.BOTH, expand=True)
+
+    title_label = tk.Label(
+        frame,
+        text="Sürüm kontrol ediliyor...\nChecking version...",
+        font=("Segoe UI", 13, "bold"),
+        fg="#ffcc00",
+        bg='#050505',
+        justify='center'
+    )
+    title_label.pack(pady=(0, 10))
+
+    subtitle = tk.Label(
+        frame,
+        text=f"Kurulu sürüm / Installed: v{VERSION}",
+        font=("Segoe UI", 10),
+        fg="#cfcfcf",
+        bg='#050505'
+    )
+    subtitle.pack(pady=(0, 10))
+
+    style = ttk.Style()
+    try:
+        style.theme_use(style.theme_use())
+    except tk.TclError:
+        pass
+    style.configure(
+        "Version.Horizontal.TProgressbar",
+        troughcolor='#1a1a1a',
+        background='#4a90e2',
+        bordercolor='#1a1a1a',
+        lightcolor='#4a90e2',
+        darkcolor='#4a90e2'
+    )
+
+    progress = ttk.Progressbar(
+        frame,
+        orient="horizontal",
+        mode="determinate",
+        length=260,
+        style="Version.Horizontal.TProgressbar",
+        maximum=100
+    )
+    progress.pack(pady=(5, 0))
+    progress['value'] = 0
+
+    animation_label = tk.Label(
+        frame,
+        text="🔍 Kontrol ediliyor...",
+        font=("Segoe UI", 10),
+        fg="#8ad4ff",
+        bg='#050505'
+    )
+    animation_label.pack(pady=(12, 4))
+
+    result_label = tk.Label(
+        frame,
+        text="",
+        font=("Segoe UI", 10, "bold"),
+        fg="#ffffff",
+        bg='#050505',
+        wraplength=360,
+        justify='center'
+    )
+    result_label.pack()
+
+    status = {'latest': None, 'error': None}
+    done_event = threading.Event()
+    finished = {'value': False}
+    animation_index = {'value': 0}
+    progress_value = {'value': 0}
+
+    animation_frames = [
+        "🔍 Kontrol ediliyor...",
+        "🔍 Kontrol ediliyor..",
+        "🔍 Kontrol ediliyor.",
+        "⚡ Sunucu yanıtı bekleniyor...",
+        "☁️ Github bağlantısı doğrulanıyor...",
+        "🔐 İmza doğrulanıyor...",
+    ]
+
+    def animate():
+        if finished['value']:
+            return
+        frame = animation_frames[animation_index['value'] % len(animation_frames)]
+        animation_label.config(text=frame)
+        animation_index['value'] += 1
+        overlay.after(220, animate)
+
+    def animate_progress():
+        if finished['value']:
+            return
+        if progress_value['value'] < 90:
+            progress_value['value'] += 2
+            progress['value'] = progress_value['value']
+        overlay.after(80, animate_progress)
+
+    mismatch_message = {'text': None}
+
+    def finish():
+        if finished['value']:
+            return
+        finished['value'] = True
+        progress['value'] = 100
+        latest = status.get('latest')
+        error = status.get('error')
+
+        def close_after_delay():
+            if overlay.winfo_exists():
+                overlay.grab_release()
+                overlay.destroy()
+
+        if latest:
+            subtitle.config(text=f"Kurulu: v{VERSION} • Uzak: v{latest}")
+            if latest == VERSION:
+                animation_label.config(text="✅ Sürümünüz güncel!", fg="#50c878")
+                result_label.config(
+                    text=f"Mevcut sürüm: v{VERSION}\nVersion ok!",
+                    fg="#50c878"
+                )
+            else:
+                animation_label.config(text="⚠️ Yeni sürüm bulundu!", fg="#ffcc00")
+                result_label.config(
+                    text=f"Kurulu: v{VERSION} • Güncel: v{latest}\nLütfen yeni sürümü indirin.",
+                    fg="#ffcc00"
+                )
+                mismatch_message['text'] = (
+                    "⚠️ Yeni sürüm mevcut!\n\n"
+                    f"Kurulu sürüm: v{VERSION}\n"
+                    f"Güncel sürüm: v{latest}\n\n"
+                    "Lütfen en son paketi indirip güncelleyin."
+                )
+        elif error:
+            animation_label.config(text="⚠️ Sürüm kontrolü tamamlanamadı", fg="#ff6b6b")
+            subtitle.config(text=f"Kurulu: v{VERSION} • Durum: Hata")
+            result_label.config(
+                text=f"Hata: {error}",
+                fg="#ff6b6b"
+            )
+
+        def close_after_delay():
+            if overlay.winfo_exists():
+                overlay.grab_release()
+                overlay.destroy()
+            if mismatch_message['text']:
+                messagebox.showwarning("Yeni Sürüm Mevcut", mismatch_message['text'], parent=root)
+
+        overlay.after(2000, close_after_delay)
+
+    def worker():
+        try:
+            latest = fetch_latest_version(session=session)
+            status['latest'] = latest
+        except Exception as exc:
+            status['error'] = str(exc)
+        finally:
+            done_event.set()
+
+    def poll():
+        if done_event.is_set():
+            finish()
+        else:
+            overlay.after(100, poll)
+
+    threading.Thread(target=worker, daemon=True).start()
+    overlay.after(0, animate)
+    overlay.after(0, animate_progress)
+    overlay.after(150, poll)
+    overlay.wait_window()
+
+
+def show_preflight_notice(parent, strings):
+    popup = tk.Toplevel(parent)
+    popup.title(strings.get('preflight_title', 'Info'))
+    popup.configure(bg='#0a0a0a')
+    popup.geometry("460x320")
+    popup.resizable(False, False)
+    popup.transient(parent)
+    popup.grab_set()
+
+    parent.update_idletasks()
+    popup.update_idletasks()
+    width = popup.winfo_width()
+    height = popup.winfo_height()
+    x = parent.winfo_rootx() + (parent.winfo_width() // 2) - (width // 2)
+    y = parent.winfo_rooty() + (parent.winfo_height() // 2) - (height // 2)
+    popup.geometry(f"{width}x{height}+{x}+{y}")
+
+    frame = tk.Frame(popup, bg='#0f0f0f', padx=25, pady=25)
+    frame.pack(fill=tk.BOTH, expand=True)
+
+    header = tk.Label(
+        frame,
+        text=strings.get('preflight_header', ''),
+        font=("Segoe UI", 16, "bold"),
+        fg="#ffcc00",
+        bg='#0f0f0f'
+    )
+    header.pack(anchor='w')
+
+    body = tk.Label(
+        frame,
+        text=strings.get('preflight_message', ''),
+        font=("Segoe UI", 11),
+        fg="#ffffff",
+        bg='#0f0f0f',
+        justify='left',
+        wraplength=380
+    )
+    body.pack(fill=tk.X, pady=(12, 15))
+
+    checklist_text = strings.get('preflight_checklist')
+    if checklist_text:
+        checklist = tk.Label(
+            frame,
+            text=checklist_text,
+            font=("Segoe UI", 10),
+            fg="#c8c8c8",
+            bg='#1a1a1a',
+            justify='left',
+            anchor='w',
+            padx=15,
+            pady=12,
+            wraplength=380
+        )
+        checklist.pack(fill=tk.X, pady=(0, 20))
+
+    action_btn = tk.Button(
+        frame,
+        text=strings.get('preflight_button', 'OK'),
+        bg="#4a90e2",
+        fg="#ffffff",
+        font=("Segoe UI", 11, "bold"),
+        relief=tk.FLAT,
+        padx=24,
+        pady=8,
+        command=popup.destroy,
+        cursor='hand2'
+    )
+    action_btn.pack()
+
+    popup.focus_set()
+    popup.wait_window()
 
 
 LANGUAGES = {
@@ -50,7 +508,7 @@ Bu yazılım yalnızca **eğitimsel ve deneysel** amaçlarla geliştirilmiştir.
 Steam platformuna ait içeriklerin **lisans satın alınmadan kullanılması**;
 
 - **5846 Sayılı Fikir ve Sanat Eserleri Kanunu**,
-- **Türk Ceza Kanunu'nun 135., 136. ve 137. maddeleri**,
+- **Türk Ceza Kanunu’nun 135., 136. ve 137. maddeleri**,
 - ve **uluslararası fikri mülkiyet yasaları** kapsamında **suç teşkil eder**.
 
 🚫 Bu tür yasa dışı kullanım; **hukuki yaptırımların yanı sıra cezai sorumluluklara** da neden olabilir.
@@ -58,6 +516,11 @@ Steam platformuna ait içeriklerin **lisans satın alınmadan kullanılması**;
 💬 Geliştirici Sorumluluk Reddi:
 Bu yazılımın amacı dışında veya hukuka aykırı şekilde kullanılması halinde, **geliştirici hiçbir sorumluluk kabul etmez**.
 Lütfen bu yazılımı yalnızca **etik ve yasal sınırlar içinde** kullanınız.""",
+        "preflight_title": "⚙️ Sistem Uyarısı",
+        "preflight_header": "🚀 Başlamadan Önce",
+        "preflight_message": "Programın tüm özelliklerini kullanabilmek için aşağıdaki hazırlıkları tamamlayın:",
+        "preflight_checklist": "• Gerekli tüm Python kütüphanelerini kurduğunuzdan emin olun.\n• Antivirüs ve güvenlik duvarı korumalarını geçici olarak devre dışı bırakın.\n• Uygulamayı yönetici olarak çalıştırmanız önerilir.",
+        "preflight_button": "Hazırım, Devam Et",
         "warning": "Uyarı",
         "accept_warning": "Devam etmek için kutuyu işaretlemeniz gerekmektedir!",
         "main_title": "Toprak Steam Cracker & Manifest Oluşturucu",
@@ -65,7 +528,7 @@ Lütfen bu yazılımı yalnızca **etik ve yasal sınırlar içinde** kullanın�
         "app_subtitle": "⚡ MANIFEST OLUŞTURUCU & STEAM ENTEGRASYONU ⚡",
         "about_btn": "ℹ️ Hakkında",
         "about_title": "Hakkında",
-        "version": "Sürüm: 1.0.0",
+        "version": f"Sürüm: {VERSION}",
         "developer": "Geliştirici: Toprak",
         "about_desc": "Bu yazılım eğitimsel ve deneysel amaçlı geliştirilmiştir.",
         "github_repo": "GitHub Deposu (ManifestHub)",
@@ -201,6 +664,11 @@ Using Steam content **without a license** is a violation of **international copy
 💬 Developer Disclaimer:
 The developer **accepts no responsibility** for how this software is used. The user is solely responsible for acting within **ethical and legal boundaries**.
 """,
+        "preflight_title": "⚙️ System Notice",
+        "preflight_header": "🚀 Before You Start",
+        "preflight_message": "To make sure everything works smoothly, please review this quick checklist:",
+        "preflight_checklist": "• Install every required Python dependency.\n• Temporarily disable antivirus and firewall protection.\n• Running the app as Administrator is recommended.",
+        "preflight_button": "Ready, Continue",
         "warning": "Warning",
         "accept_warning": "You must check the box to continue!",
         "main_title": "Toprak Steam Cracker & Manifest Generator",
@@ -208,7 +676,7 @@ The developer **accepts no responsibility** for how this software is used. The u
         "app_subtitle": "⚡ MANIFEST GENERATOR & STEAM INTEGRATION ⚡",
         "about_btn": "ℹ️ About",
         "about_title": "About",
-        "version": "Version: 1.0.0",
+        "version": f"Version: {VERSION}",
         "developer": "Developer: Toprak",
         "about_desc": "This software was developed for educational and experimental purposes.",
         "github_repo": "GitHub Repository (ManifestHub)",
@@ -453,7 +921,7 @@ class OnlineFixDownloaderWindow:
         self.games_with_names = {}
         self.session = requests.Session()
         self.cache_file = "game_names_cache.json"
-        self.applist_map = None  
+        self.applist_map = None  # {appid(str): name(str)}
 
         outer = tk.Frame(self.window, bg=parent_app.bg_color, padx=15, pady=15)
         outer.pack(fill=tk.BOTH, expand=True)
@@ -580,7 +1048,7 @@ class OnlineFixDownloaderWindow:
             response.raise_for_status()
             raw_text = response.text.strip()
             
-            
+            # Debug: Ham veriyi göster
             self.root.after(0, lambda: self.append_status(f"🔍 Ham veri (ilk 200 karakter): {raw_text[:200]}"))
             
             games = []
@@ -632,12 +1100,12 @@ class OnlineFixDownloaderWindow:
         
         self.append_status("🔄 Steam API'den oyun isimleri yükleniyor...")
         
-        
+        # Önce Steam AppList'i yükle, sonra listeyi doldur
         threading.Thread(target=self._load_names_and_populate, args=(games,), daemon=True).start()
     
     def _load_names_and_populate(self, games):
         try:
-            
+            # Steam AppList'i yükle (ana programdaki gibi)
             self.root.after(0, lambda: self.append_status("🔄 Steam AppList API yükleniyor..."))
             self._load_applist_map()
             
@@ -648,7 +1116,7 @@ class OnlineFixDownloaderWindow:
             
             cache = self.load_cache()
             
-            
+            # Cache'deki eski "Oyun ID" formatındaki kayıtları temizle
             cache_updated = False
             for gid in list(cache.keys()):
                 if cache[gid].startswith(f"Oyun {gid}"):
@@ -658,29 +1126,29 @@ class OnlineFixDownloaderWindow:
                 self.save_cache(cache)
                 self.root.after(0, lambda: self.append_status("🗑️ Eski cache kayıtları temizlendi"))
             
-           
+            # Tüm oyunları işle ve UI'yi tek seferde güncelle
             games_to_add = []
             found_names = 0
             for g in games:
                 gid = g['game_id']
-                
+                # Debug: ID'yi kontrol et
                 self.root.after(0, lambda id=gid: self.append_status(f"🔍 ID kontrol ediliyor: {id}"))
                 
-                
+                # Önce cache'den bak (ama "Oyun ID" formatındaki eski kayıtları yoksay)
                 game_name = cache.get(gid)
                 if game_name and not game_name.startswith(f"Oyun {gid}"):
                     self.root.after(0, lambda id=gid, name=game_name: self.append_status(f"📁 Cache'den bulundu: {id} -> {name}"))
                 else:
-                    game_name = None  
+                    game_name = None  # Cache'deki eski format, Steam API'den tekrar al
                 
                 if not game_name and self.applist_map:
-                    
+                    # Cache'de yoksa Steam AppList'ten bak
                     game_name = self.applist_map.get(gid)
                     if game_name:
                         found_names += 1
                         self.root.after(0, lambda id=gid, name=game_name: self.append_status(f"🎮 Steam API'den bulundu: {id} -> {name}"))
                     else:
-                        
+                        # ID'nin AppList'te olup olmadığını kontrol et
                         self.root.after(0, lambda id=gid: self.append_status(f"❌ Steam API'de bulunamadı: {id}"))
                         
                 if not game_name:
@@ -689,7 +1157,7 @@ class OnlineFixDownloaderWindow:
                 self.games_with_names[gid] = game_name
                 games_to_add.append(game_name)
             
-            
+            # UI thread'inde tüm listeyi güncelle
             def update_ui():
                 for game_name in games_to_add:
                     self.game_list.insert(tk.END, f"🎮 {game_name}")
@@ -772,21 +1240,13 @@ class OnlineFixDownloaderWindow:
     def _load_applist_map(self):
         if self.applist_map is not None:
             return
-        url = "https://api.steampowered.com/ISteamApps/GetAppList/v2/"
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
-        resp = self.session.get(url, headers=headers, timeout=60)
-        resp.raise_for_status()
-        data = resp.json()
-        apps = data.get('applist', {}).get('apps', [])
+        apps = fetch_steam_app_list(self.session)
         mapping = {}
         for item in apps:
-            try:
-                appid = str(item.get('appid'))
-                name = item.get('name')
-                if appid and name:
-                    mapping[appid] = name
-            except Exception:
-                continue
+            appid = item.get('appid')
+            name = item.get('name')
+            if appid and name:
+                mapping[appid] = name
         self.applist_map = mapping
 
     def _fetch_steam_batch(self, game_ids):
@@ -836,7 +1296,7 @@ class OnlineFixDownloaderWindow:
             messagebox.showwarning("Uyarı", "Lütfen bir oyun seçin!", parent=self.window)
             return
         index = sel[0]
-        
+        # Liste, self.games sırasıyla dolduruluyor; seçilen index'ten game_id alınır
         try:
             game_id = self.games[index]['game_id']
         except Exception:
@@ -878,7 +1338,7 @@ class OnlineFixDownloaderWindow:
                 if m:
                     file_name = m.group(1)
             if not file_name:
-                
+                # Varsayılan olarak .rar uzantısı ile game_id adına kaydet
                 file_name = f"{game_id}.rar"
 
             file_path = os.path.join(desktop_path, file_name)
@@ -1052,7 +1512,7 @@ class SteamManifestTool:
 
         tk.Label(about_window, text="Toprak Steam Cracker",
                  font=("Segoe UI", 16, "bold"), fg=self.text_color, bg=self.bg_color).pack(pady=10)
-        tk.Label(about_window, text=(f"Sürüm: V{CURRENT_VERSION}" if self.strings.get('legal_title') == 'Yasal Uyarı' else f"Version: V{CURRENT_VERSION}"),
+        tk.Label(about_window, text=self.strings['version'],
                  font=("Segoe UI", 10), fg=self.text_color, bg=self.bg_color).pack(pady=2)
         tk.Label(about_window, text=self.strings['developer'],
                  font=("Segoe UI", 10), fg=self.text_color, bg=self.bg_color).pack(pady=2)
@@ -1064,13 +1524,6 @@ class SteamManifestTool:
                                 font=("Segoe UI", 10, "underline"), fg=self.primary_button, bg=self.bg_color, cursor="hand2")
         github_label.pack(pady=5)
         github_label.bind("<Button-1>", lambda e: webbrowser.open("https://github.com/SteamAutoCracks/ManifestHub"))
-
-        discord_btn = tk.Button(about_window, text="💬 Discord",
-                                command=lambda: webbrowser.open("https://discord.gg/nTA3yfmTyu"),
-                                bg=self.info_button, fg=self.text_color, font=("Segoe UI", 10, "bold"),
-                                relief=tk.FLAT, padx=20, pady=8, cursor='hand2')
-        self.add_button_hover_effects(discord_btn, self.info_button, self._get_hover_color(self.info_button), original_padx=20, original_pady=8)
-        discord_btn.pack(pady=(10, 0))
 
         message_label = tk.Label(about_window, text=self.strings['about_disclaimer'],
                  font=("Segoe UI", 9), fg=self.text_color, bg=self.bg_color, wraplength=400, justify=tk.CENTER)
@@ -1110,11 +1563,25 @@ class SteamManifestTool:
 
     def save_installed_games(self, games):
         with open(self.installed_games_file, 'w', encoding='utf-8') as f:
-            json.dump(games, f, indent=4)
+            json.dump(games, f, indent=4, ensure_ascii=False)
 
-    def add_installed_game(self, app_id, game_name):
+    def add_installed_game(self, app_id, game_name, lua_files=None, manifest_files=None):
         installed_games = self.load_installed_games()
-        installed_games[app_id] = game_name
+        entry = installed_games.get(app_id)
+        if isinstance(entry, dict):
+            entry_data = entry
+        elif isinstance(entry, str):
+            entry_data = {"name": entry}
+        else:
+            entry_data = {}
+
+        entry_data['name'] = game_name
+        if lua_files is not None:
+            entry_data['lua_files'] = sorted(set(lua_files))
+        if manifest_files is not None:
+            entry_data['manifest_files'] = sorted(set(manifest_files))
+
+        installed_games[app_id] = entry_data
         self.save_installed_games(installed_games)
 
     def remove_installed_game_entry(self, app_id):
@@ -1159,13 +1626,19 @@ class SteamManifestTool:
         close_btn.pack(side=tk.LEFT, padx=10)
 
     def populate_installed_games_list(self):
+        if not hasattr(self, 'installed_games_listbox'):
+            return
         self.installed_games_listbox.delete(0, tk.END)
         installed_games = self.load_installed_games()
         if not installed_games:
             self.installed_games_listbox.insert(tk.END, self.strings['no_installed_games'])
             return
 
-        for app_id, game_name in installed_games.items():
+        for app_id, info in installed_games.items():
+            if isinstance(info, dict):
+                game_name = info.get('name', f"Oyun {app_id}")
+            else:
+                game_name = info
             self.installed_games_listbox.insert(tk.END, f"{game_name}{self.strings['game_id_format'].format(app_id=app_id)}")
 
     def on_installed_game_select(self, event):
@@ -1403,6 +1876,14 @@ class SteamManifestTool:
 
             lua_count = 0
             manifest_count = 0
+            installed_lua_files = []
+            installed_manifest_files = []
+            installed_lua_files = []
+            installed_manifest_files = []
+            installed_lua_files = []
+            installed_manifest_files = []
+            installed_lua_files = []
+            installed_manifest_files = []
 
             for file_path in valid_files:
                 file_name = os.path.basename(file_path)
@@ -1478,11 +1959,10 @@ class SteamManifestTool:
 
     def load_game_list(self):
         try:
-            url = "https://api.steampowered.com/ISteamApps/GetAppList/v2/"
-            response = requests.get(url, timeout=30)
-            data = response.json()
-            self.game_list = data.get("applist", {}).get("apps", [])
+            apps = fetch_steam_app_list()
+            self.game_list = apps
         except Exception as e:
+            self.game_list = []
             print(self.strings['game_list_fetch_error'].format(error=str(e)))
 
     def show_game_search(self):
@@ -1555,7 +2035,7 @@ class SteamManifestTool:
                 for game in filtered[:20]:
                     suggestion_box.insert(tk.END, f"{game['name']} ({game['appid']})")
 
-        def select_suggestion(event):
+        def select_suggestion(event=None, close_after=False):
             selection = suggestion_box.curselection()
             if selection:
                 selected_text = suggestion_box.get(selection[0])
@@ -1565,8 +2045,11 @@ class SteamManifestTool:
                     self.app_id_var.set(app_id)
                     selected_label.config(text=f"{self.strings['selected_game_label']}{game_name} (ID: {app_id})")
                     self.animate_status_message(self.strings['game_selected_status'].format(game_name=game_name), self.success_button)
-                    fetch_and_show_cover(app_id)
-                    fetch_and_show_details(app_id)
+                    if close_after:
+                        search_window.destroy()
+                    else:
+                        fetch_and_show_cover(app_id)
+                        fetch_and_show_details(app_id)
 
         
         def fetch_and_show_details(app_id):
@@ -1601,7 +2084,7 @@ class SteamManifestTool:
         button_frame = tk.Frame(search_window, bg=self.secondary_bg)
         button_frame.pack(pady=10)
 
-        select_btn = tk.Button(button_frame, text=self.strings['select_btn'], command=lambda: select_suggestion(None),
+        select_btn = tk.Button(button_frame, text=self.strings['select_btn'], command=lambda: select_suggestion(None, True),
                              bg=self.primary_button, fg=self.text_color, font=("Segoe UI", 10, "bold"),
                              relief=tk.FLAT, padx=20)
         self.add_button_hover_effects(select_btn, self.primary_button, self._get_hover_color(self.primary_button), original_padx=20)
@@ -1806,10 +2289,23 @@ class SteamManifestTool:
         self.footer_label.pack(side=tk.RIGHT)
 
     def add_button_hover_effects(self, button, normal_color, hover_color, original_padx=None, original_pady=None):
+        def _to_number(value):
+            if isinstance(value, (int, float)):
+                return value
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return 0
+
         if original_padx is None:
-            original_padx = button.cget('padx')
+            original_padx = _to_number(button.cget('padx'))
+        else:
+            original_padx = _to_number(original_padx)
+
         if original_pady is None:
-            original_pady = button.cget('pady')
+            original_pady = _to_number(button.cget('pady'))
+        else:
+            original_pady = _to_number(original_pady)
 
         def on_enter(e):
             button.configure(bg=hover_color)
@@ -2023,19 +2519,25 @@ class SteamManifestTool:
 
             lua_count = 0
             manifest_count = 0
+            installed_lua_files = []
+            installed_manifest_files = []
 
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 for file in zip_ref.namelist():
                     if file.lower().endswith('.lua'):
-                        target = os.path.join(stplugin_dir, os.path.basename(file))
+                        dest_name = os.path.basename(file)
+                        target = os.path.join(stplugin_dir, dest_name)
                         with zip_ref.open(file) as src, open(target, 'wb') as dst:
                             shutil.copyfileobj(src, dst)
                         lua_count += 1
+                        installed_lua_files.append(dest_name)
                     elif file.lower().endswith('.manifest'):
-                        target = os.path.join(depotcache_dir, os.path.basename(file))
+                        dest_name = os.path.basename(file)
+                        target = os.path.join(depotcache_dir, dest_name)
                         with zip_ref.open(file) as src, open(target, 'wb') as dst:
                             shutil.copyfileobj(src, dst)
                         manifest_count += 1
+                        installed_manifest_files.append(dest_name)
 
             marcellus_path = os.path.join(stplugin_dir, 'marcellus.lua')
             existing_lines = []
@@ -2052,7 +2554,7 @@ class SteamManifestTool:
                         new_count += 1
 
             if app_id:
-                self.add_installed_game(app_id, game_name)
+                self.add_installed_game(app_id, game_name, installed_lua_files, installed_manifest_files)
 
             success_msg = f"""{self.strings['game_crack_success_msgbox_title']}
 
@@ -2101,15 +2603,36 @@ class SteamManifestTool:
             lua_files_removed = 0
             manifest_files_removed = 0
 
-            for filename in os.listdir(stplugin_dir):
-                if filename.startswith(app_id) and filename.lower().endswith('.lua'):
-                    os.remove(os.path.join(stplugin_dir, filename))
-                    lua_files_removed += 1
+            installed_entry = self.load_installed_games().get(app_id)
+            stored_luas = []
+            stored_manifests = []
+            if isinstance(installed_entry, dict):
+                stored_luas = installed_entry.get('lua_files', []) or []
+                stored_manifests = installed_entry.get('manifest_files', []) or []
 
-            for filename in os.listdir(depotcache_dir):
-                if filename.startswith(app_id) and filename.lower().endswith('.manifest'):
-                    os.remove(os.path.join(depotcache_dir, filename))
-                    manifest_files_removed += 1
+            if stored_luas:
+                for filename in stored_luas:
+                    file_path = os.path.join(stplugin_dir, filename)
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        lua_files_removed += 1
+            elif os.path.isdir(stplugin_dir):
+                for filename in os.listdir(stplugin_dir):
+                    if filename.startswith(app_id) and filename.lower().endswith('.lua'):
+                        os.remove(os.path.join(stplugin_dir, filename))
+                        lua_files_removed += 1
+
+            if stored_manifests:
+                for filename in stored_manifests:
+                    file_path = os.path.join(depotcache_dir, filename)
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        manifest_files_removed += 1
+            elif os.path.isdir(depotcache_dir):
+                for filename in os.listdir(depotcache_dir):
+                    if filename.startswith(app_id) and filename.lower().endswith('.manifest'):
+                        os.remove(os.path.join(depotcache_dir, filename))
+                        manifest_files_removed += 1
 
             marcellus_path = os.path.join(stplugin_dir, 'marcellus.lua')
             if os.path.exists(marcellus_path):
@@ -2196,7 +2719,7 @@ class SteamManifestTool:
     def show_success_message(self, message):
         self.animate_status_message(f"✅ {message}", self.success_button)
 
-   
+    # --- Online Fix (entegre Tkinter penceresi) ---
     def create_online_fix_button(self, parent):
         self.online_fix_btn = tk.Button(
             parent,
@@ -2216,7 +2739,7 @@ class SteamManifestTool:
 
     def open_online_fix_window(self):
         OnlineFixDownloaderWindow(self)
-    
+    # --- Online Fix sonu ---
 
 
 def main():
@@ -2228,198 +2751,60 @@ def main():
 
         root.withdraw()
 
+        try:
+            root.attributes('-alpha', 0.0)
+        except Exception:
+            pass
+        root.deiconify()
+        root.lift()
+        show_version_check(root)
+        root.withdraw()
+        try:
+            root.attributes('-alpha', 1.0)
+        except Exception:
+            pass
+
+        legal_window = tk.Toplevel(root)
+        legal = LegalNotice(legal_window)
+        legal_window.wait_window(legal_window)
         
-        UpdateChecker(root, is_turkish=True).check_for_updates(on_complete=lambda: _show_legal_then_main(root))
+        
+        if not hasattr(legal, 'var') or legal.var.get() != 1:
+            root.destroy()
+            return
+        
+        
+        selected_language = legal.selected_lang
+        lang_strings = LANGUAGES.get(selected_language, LANGUAGES['tr'])
+
+        system32_path = os.path.join(os.environ['SystemRoot'], 'System32')
+        if system32_path not in os.environ['PATH']:
+            os.environ['PATH'] = system32_path + ';' + os.environ['PATH']
+
+        app = SteamManifestTool(root, lang_code=selected_language)
+
+        root.update_idletasks()
+        width = root.winfo_width()
+        height = root.winfo_height()
+        x = (root.winfo_screenwidth() // 2) - (width // 2)
+        y = (root.winfo_screenheight() // 2) - (height // 2)
+        root.geometry(f'{width}x{height}+{x}+{y}')
+
+        root.deiconify()
+        root.lift()
+
+        show_preflight_notice(root, lang_strings)
 
         root.mainloop()
 
     except Exception as e:
         error_root = tk.Tk()
         error_root.withdraw()
-        lang = LANGUAGES.get('tr', LANGUAGES['en'])
+        
+        lang = LANGUAGES.get('tr', LANGUAGES['en']) 
         messagebox.showerror(lang['critical_error_title'], lang['app_start_error'].format(error=str(e)), parent=error_root)
         error_root.destroy()
         raise
-
-def _show_legal_then_main(root):
-    legal_window = tk.Toplevel(root)
-    legal = LegalNotice(legal_window)
-    legal_window.wait_window(legal_window)
-
-    if not hasattr(legal, 'var') or legal.var.get() != 1:
-        root.destroy()
-        return
-
-    selected_language = legal.selected_lang
-    root.deiconify()
-
-    system32_path = os.path.join(os.environ['SystemRoot'], 'System32')
-    if system32_path not in os.environ['PATH']:
-        os.environ['PATH'] = system32_path + ';' + os.environ['PATH']
-
-    app = SteamManifestTool(root, lang_code=selected_language)
-
-    root.update_idletasks()
-    width = root.winfo_width()
-    height = root.winfo_height()
-    x = (root.winfo_screenwidth() // 2) - (width // 2)
-    y = (root.winfo_screenheight() // 2) - (height // 2)
-    root.geometry(f'{width}x{height}+{x}+{y}')
-
-class UpdateChecker:
-    def __init__(self, parent, is_turkish: bool):
-        self.parent = parent
-        self.is_turkish = is_turkish
-        self.update_window = None
-        self.update_label = None
-        self.update_progress = None
-        self.on_complete = None
-
-    def check_for_updates(self, on_complete=None):
-        self.on_complete = on_complete
-        self._show_progress()
-        threading.Thread(target=self._thread_check, daemon=True).start()
-
-    def _show_progress(self):
-        window_title = "Güncelleme Kontrolü" if self.is_turkish else "Update Check"
-        checking_text = "🔄 Program güncellemeleri kontrol ediliyor" if self.is_turkish else "🔄 Checking for updates"
-        version_text = (f"Mevcut Sürüm: V{CURRENT_VERSION}" if self.is_turkish else f"Current Version: V{CURRENT_VERSION}")
-
-        self.update_window = tk.Toplevel(self.parent)
-        self.update_window.title(window_title)
-        self.update_window.geometry("450x180")
-        self.update_window.configure(bg='#0a0a0a')
-        self.update_window.resizable(False, False)
-        self.update_window.attributes('-topmost', True)
-
-        self.update_window.update_idletasks()
-        width = self.update_window.winfo_width()
-        height = self.update_window.winfo_height()
-        x = (self.update_window.winfo_screenwidth() // 2) - (width // 2)
-        y = (self.update_window.winfo_screenheight() // 2) - (height // 2)
-        self.update_window.geometry(f'{width}x{height}+{x}+{y}')
-
-        main_frame = tk.Frame(self.update_window, bg='#0a0a0a', padx=30, pady=20)
-        main_frame.pack(fill=tk.BOTH, expand=True)
-
-        self.update_label = tk.Label(main_frame, text=checking_text, font=("Segoe UI", 12, "bold"), fg='#4a90e2', bg='#0a0a0a')
-        self.update_label.pack(pady=(10, 20))
-
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure("Update.Horizontal.TProgressbar", background='#4a90e2', troughcolor='#1a1a1a', borderwidth=0, lightcolor='#4a90e2', darkcolor='#4a90e2', thickness=10)
-
-        self.update_progress = ttk.Progressbar(main_frame, style="Update.Horizontal.TProgressbar", mode='indeterminate')
-        self.update_progress.pack(fill=tk.X, pady=(0, 15))
-        self.update_progress.start(8)
-
-        tk.Label(main_frame, text=version_text, font=("Segoe UI", 9), fg='#888888', bg='#0a0a0a').pack()
-
-        self._animate_text(checking_text)
-
-    def _animate_text(self, base_text: str):
-        try:
-            if self.update_window and self.update_window.winfo_exists():
-                dots = '.' * (int(time.time() * 2) % 4)
-                self.update_label.config(text=base_text + dots)
-                self.parent.after(500, lambda: self._animate_text(base_text))
-        except Exception:
-            pass
-
-    def _thread_check(self):
-        try:
-            time.sleep(1.5)
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-            response = requests.get(VERSION_CHECK_URL, headers=headers, timeout=10)
-            response.raise_for_status()
-            remote_version = response.text.strip()
-            needs_update = self._is_newer(remote_version, CURRENT_VERSION)
-            self.parent.after(0, lambda: self._finish_check(needs_update, remote_version))
-        except Exception as e:
-            self.parent.after(0, lambda: self._finish_check(None, None))
-
-    def _is_newer(self, remote: str, current: str) -> bool:
-        try:
-            r = [int(x) for x in remote.split('.')]
-            c = [int(x) for x in current.split('.')]
-            max_len = max(len(r), len(c))
-            r += [0] * (max_len - len(r))
-            c += [0] * (max_len - len(c))
-            return r > c
-        except Exception:
-            return False
-
-    def _finish_check(self, needs_update: bool | None, remote_version: str | None):
-        if self.update_progress:
-            try:
-                self.update_progress.stop()
-            except Exception:
-                pass
-
-        if needs_update is None:
-            
-            self._continue()
-            return
-
-        
-        try:
-            if not (self.update_window and self.update_window.winfo_exists()):
-                self.update_window = tk.Toplevel(self.parent)
-                self.update_window.configure(bg='#0a0a0a')
-            for child in self.update_window.winfo_children():
-                child.destroy()
-        except Exception:
-            pass
-
-        title_text = ("🆕 Güncelleme Mevcut" if self.is_turkish else "🆕 Update Available") if needs_update else ("✅ Sürüm Güncel" if self.is_turkish else "✅ Up To Date")
-        self.update_window.title(title_text)
-        self.update_window.geometry("520x220")
-        self.update_window.resizable(False, False)
-        self.update_window.attributes('-topmost', True)
-
-        self.update_window.update_idletasks()
-        width = self.update_window.winfo_width()
-        height = self.update_window.winfo_height()
-        x = (self.update_window.winfo_screenwidth() // 2) - (width // 2)
-        y = (self.update_window.winfo_screenheight() // 2) - (height // 2)
-        self.update_window.geometry(f'{width}x{height}+{x}+{y}')
-
-        frame = tk.Frame(self.update_window, bg='#0a0a0a', padx=24, pady=20)
-        frame.pack(fill=tk.BOTH, expand=True)
-
-        if needs_update:
-            msg = (f"Yeni sürüm mevcut: V{remote_version}\nMevcut sürümünüz: V{CURRENT_VERSION}\n\nGüncellemek için GitHub sayfasına gidebilirsiniz.") if self.is_turkish else (f"New version available: V{remote_version}\nYour version: V{CURRENT_VERSION}\n\nYou can visit GitHub to update.")
-            tk.Label(frame, text=msg, font=("Segoe UI", 11), fg='#ffffff', bg='#0a0a0a', justify=tk.LEFT).pack(anchor=tk.W)
-
-            btns = tk.Frame(frame, bg='#0a0a0a')
-            btns.pack(fill=tk.X, pady=(16, 0))
-
-            update_text = "🔗 Güncelle" if self.is_turkish else "🔗 Update"
-            later_text = "⏰ Ertele" if self.is_turkish else "⏰ Later"
-
-            update_btn = tk.Button(btns, text=update_text, command=lambda: [webbrowser.open(GITHUB_RELEASES_URL), self._continue()], bg='#50c878', fg='#ffffff', relief=tk.FLAT, padx=18, pady=8, font=("Segoe UI", 10, 'bold'), cursor='hand2')
-            update_btn.pack(side=tk.LEFT, padx=(0, 10))
-
-            later_btn = tk.Button(btns, text=later_text, command=self._continue, bg='#6a5acd', fg='#ffffff', relief=tk.FLAT, padx=18, pady=8, font=("Segoe UI", 10, 'bold'), cursor='hand2')
-            later_btn.pack(side=tk.LEFT)
-        else:
-            info = (f"Sürüm güncel!\nMevcut Sürüm: V{CURRENT_VERSION}") if self.is_turkish else (f"Version is up to date!\nCurrent Version: V{CURRENT_VERSION}")
-            tk.Label(frame, text=info, font=("Segoe UI", 11), fg='#ffffff', bg='#0a0a0a', justify=tk.CENTER).pack()
-            ok_text = "Devam" if self.is_turkish else "Continue"
-            ok_btn = tk.Button(frame, text=ok_text, command=self._continue, bg='#4a90e2', fg='#ffffff', relief=tk.FLAT, padx=18, pady=8, font=("Segoe UI", 10, 'bold'), cursor='hand2')
-            ok_btn.pack(pady=(16, 0))
-
-    def _continue(self):
-        try:
-            if self.update_window and self.update_window.winfo_exists():
-                self.update_window.destroy()
-        except Exception:
-            pass
-        if callable(self.on_complete):
-            try:
-                self.on_complete()
-            except Exception:
-                pass
 
 
 if __name__ == "__main__":
