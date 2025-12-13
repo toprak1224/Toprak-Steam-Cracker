@@ -91,6 +91,8 @@ CMD veya PowerShell’de aşağıdaki komutu çalıştırın:
 
 <img width="392" height="424" alt="image" src="https://github.com/user-attachments/assets/ab3b93ab-a3f4-45eb-9f0a-9007a9b69d81" />
 
+https://discord.gg/nTA3yfmTyu
+
 
 
 Toprak Steam Cracker is a desktop application developed for Windows, designed to simplify the management of manifest and LUA files for Steam games.  
@@ -164,15 +166,7 @@ The developer assumes **no responsibility** for any use of this software outside
 
 ---
 
-## ⚙️ Installation & Usage
-
-### 1. Install Python
-Ensure **Python 3.x** is installed on your system.  
-[Download Python](https://www.python.org/downloads/)
-
-### 2. Install Dependencies  
-Run the following command in CMD or PowerShell:
-
+https://discord.gg/nTA3yfmTyu
 ```bash
 pip install -r requirements.txt
 
