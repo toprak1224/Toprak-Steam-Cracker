@@ -25,7 +25,7 @@ import winreg
 import json
 import re
 
-VERSION = "4.2"
+VERSION = "4.3"
 VERSION_CHECK_URL = "https://raw.githubusercontent.com/toprak1224/Toprak-Steam-Cracker/refs/heads/main/verison"
 STEAM_APP_LIST_CACHE_FILE = "steam_app_list_cache.json"
 STEAM_APP_LIST_HEADERS = {
@@ -1835,6 +1835,75 @@ class SteamManifestTool:
         self.drop_area.bind('<Enter>', lambda e: self.drop_area.config(bg=self._get_hover_color(self.highlight_color)))
         self.drop_area.bind('<Leave>', lambda e: self.drop_area.config(bg=self.highlight_color))
 
+        # Add manual file selection button
+        self.manual_select_btn = tk.Button(inner_frame, text="📁 Manuel Olark Ekle",
+                                        command=self.select_files_manually,
+                                        bg=self.info_button, fg=self.text_color,
+                                        font=('Segoe UI', 10, 'bold'),
+                                        relief=tk.FLAT, bd=0,
+                                        padx=15, pady=8, cursor='hand2')
+        self.manual_select_btn.pack(pady=(15, 0))
+        self.add_button_hover_effects(self.manual_select_btn, self.info_button, self._get_hover_color(self.info_button))
+
+    def select_files_manually(self):
+        """Allow user to manually select manifest and lua files"""
+        steam_path = self.steam_path_var.get().strip()
+        if not steam_path:
+            self.show_error_message(self.strings['select_steam_folder_prompt'])
+            return
+
+        # Open file dialog for selecting files
+        files = filedialog.askopenfilenames(
+            title="Select Manifest and Lua Files",
+            filetypes=[
+                ("Manifest and Lua Files", "*.manifest *.lua"),
+                ("Manifest Files", "*.manifest"),
+                ("Lua Files", "*.lua"),
+                ("All Files", "*.*")
+            ]
+        )
+
+        if not files:
+            return
+
+        # Filter valid files
+        valid_files = [f for f in files if f.lower().endswith(('.manifest', '.lua'))]
+
+        if not valid_files:
+            self.show_error_message(self.strings['only_manifest_lua_accepted'])
+            return
+
+        # Process the selected files
+        self.process_dropped_files(valid_files, steam_path)
+
+    def process_dropped_files(self, valid_files, steam_path):
+        """Process dropped or manually selected files"""
+        try:
+            stplugin_dir = os.path.join(steam_path, 'config', 'stplug-in')
+            depotcache_dir = os.path.join(steam_path, 'config', 'depotcache')
+            os.makedirs(stplugin_dir, exist_ok=True)
+            os.makedirs(depotcache_dir, exist_ok=True)
+
+            lua_count = 0
+            manifest_count = 0
+
+            for file_path in valid_files:
+                file_name = os.path.basename(file_path)
+                if file_name.lower().endswith('.lua'):
+                    dest = os.path.join(stplugin_dir, file_name)
+                    shutil.copy2(file_path, dest)
+                    lua_count += 1
+                elif file_name.lower().endswith('.manifest'):
+                    dest = os.path.join(depotcache_dir, file_name)
+                    shutil.copy2(file_path, dest)
+                    manifest_count += 1
+
+            messagebox.showinfo(self.strings['success'], self.strings['drag_drop_success_msg'].format(lua_count=lua_count, manifest_count=manifest_count))
+            self.animate_status_message(self.strings['drag_drop_success_status'].format(count=lua_count + manifest_count), self.success_button)
+
+        except Exception as e:
+            self.show_error_message(self.strings['file_process_error'].format(error=str(e)))
+
     def on_drop(self, event):
         steam_path = self.steam_path_var.get().strip()
         if not steam_path:
@@ -1868,39 +1937,8 @@ class SteamManifestTool:
             self.show_error_message(self.strings['only_manifest_lua_accepted'])
             return
 
-        try:
-            stplugin_dir = os.path.join(steam_path, 'config', 'stplug-in')
-            depotcache_dir = os.path.join(steam_path, 'config', 'depotcache')
-            os.makedirs(stplugin_dir, exist_ok=True)
-            os.makedirs(depotcache_dir, exist_ok=True)
-
-            lua_count = 0
-            manifest_count = 0
-            installed_lua_files = []
-            installed_manifest_files = []
-            installed_lua_files = []
-            installed_manifest_files = []
-            installed_lua_files = []
-            installed_manifest_files = []
-            installed_lua_files = []
-            installed_manifest_files = []
-
-            for file_path in valid_files:
-                file_name = os.path.basename(file_path)
-                if file_name.lower().endswith('.lua'):
-                    dest = os.path.join(stplugin_dir, file_name)
-                    shutil.copy2(file_path, dest)
-                    lua_count += 1
-                elif file_name.lower().endswith('.manifest'):
-                    dest = os.path.join(depotcache_dir, file_name)
-                    shutil.copy2(file_path, dest)
-                    manifest_count += 1
-
-            messagebox.showinfo(self.strings['success'], self.strings['drag_drop_success_msg'].format(lua_count=lua_count, manifest_count=manifest_count))
-            self.animate_status_message(self.strings['drag_drop_success_status'].format(count=lua_count + manifest_count), self.success_button)
-
-        except Exception as e:
-            self.show_error_message(self.strings['file_process_error'].format(error=str(e)))
+        # Process the dropped files
+        self.process_dropped_files(valid_files, steam_path)
 
     def download_hid_dll(self):
         try:
