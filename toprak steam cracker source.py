@@ -25,7 +25,7 @@ import winreg
 import json
 import re
 
-VERSION = "4.3"
+VERSION = "4.4"
 VERSION_CHECK_URL = "https://raw.githubusercontent.com/toprak1224/Toprak-Steam-Cracker/refs/heads/main/verison"
 STEAM_APP_LIST_CACHE_FILE = "steam_app_list_cache.json"
 STEAM_APP_LIST_HEADERS = {
@@ -540,15 +540,15 @@ Lütfen bu yazılımı yalnızca **etik ve yasal sınırlar içinde** kullanın�
         "game_id_format": " (ID: {app_id})",
         "game_selected_status": "🎮 OYUN SEÇİLDİ: {game_name}",
         "success": "Başarılı",
-        "hid_removed_success": "hid.dll başarıyla kaldırıldı!\nSteam'i yeniden başlatabilirsiniz.",
-        "hid_removed_status": "✅ HID.dll BAŞARIYLA KALDIRILDI",
+        "hid_removed_success": "xinput1_4.dll başarıyla kaldırıldı!\nSteam'i yeniden başlatabilirsiniz.",
+        "hid_removed_status": "✅ xinput1_4.dll BAŞARIYLA KALDIRILDI",
         "info": "Bilgi",
-        "hid_not_found": "hid.dll dosyası bulunamadı!",
-        "hid_not_found_status": "ℹ️ HID.dll BULUNAMADI",
+        "hid_not_found": "xinput1_4.dll dosyası bulunamadı!",
+        "hid_not_found_status": "ℹ️ xinput1_4.dll BULUNAMADI",
         "error": "Hata",
-        "hid_remove_error": "hid.dll kaldırılırken hata oluştu:\n{error}",
-        "hid_remove_error_status": "❌ HID.dll KALDIRILAMADI",
-        "remove_hid_btn": "🗑️ HID.dll Kaldır",
+        "hid_remove_error": "xinput1_4.dll kaldırılırken hata oluştu:\n{error}",
+        "hid_remove_error_status": "❌ xinput1_4.dll KALDIRILAMADI",
+        "remove_hid_btn": "🗑️ xinput1_4.dll Kaldır",
         "zip_upload_btn": "📦 Manuel Olarak Zip Yükle",
         "select_steam_folder_prompt": "Lütfen önce Steam kurulum klasörünü seçin!",
         "select_zip_title": "ZIP Dosyası Seçin",
@@ -569,12 +569,12 @@ Lütfen bu yazılımı yalnızca **etik ve yasal sınırlar içinde** kullanın�
         "file_process_error": "Dosyalar işlenirken hata oluştu:\n{error}",
         "drag_drop_success_msg": "🎉 {lua_count} LUA ve {manifest_count} manifest dosyası eklendi!\n\n🚀 Oyununuzu oynamak için Steam'i yeniden başlatın!",
         "drag_drop_success_status": "📂 {count} DOSYA EKLENDİ",
-        "download_hid_btn": "💾 HID.dll İndir",
+        "download_hid_btn": "💾 xinput1_4.dll İndir",
         "hid_path_not_found_warning": "Steam kurulum yolu bulunamadı. Dosya masaüstüne kaydedilecek.",
         "dll_download_success": "DLL başarıyla indirildi!\nKaydedilen konum: {save_path}",
-        "dll_download_success_status": "✅ HID.dll BAŞARIYLA İNDİRİLDİ",
+        "dll_download_success_status": "✅ xinput1_4.dll BAŞARIYLA İNDİRİLDİ",
         "dll_download_error": "DLL indirilirken hata oluştu:\n{error}",
-        "dll_download_error_status": "❌ HID.dll İNDİRİLEMEDİ",
+        "dll_download_error_status": "❌ xinput1_4.dll İNDİRİLEMEDİ",
         "search_game_btn": "🔍 Oyun Ara",
         "game_list_fetch_error": "Oyun listesi alınamadı: {error}",
         "game_search_title": "Steam Oyun Arama",
@@ -688,15 +688,15 @@ The developer **accepts no responsibility** for how this software is used. The u
         "game_id_format": " (ID: {app_id})",
         "game_selected_status": "🎮 GAME SELECTED: {game_name}",
         "success": "Success",
-        "hid_removed_success": "hid.dll has been successfully removed!\nYou can restart Steam.",
-        "hid_removed_status": "✅ HID.dll REMOVED SUCCESSFULLY",
+        "hid_removed_success": "xinput1_4.dll has been successfully removed!\nYou can restart Steam.",
+        "hid_removed_status": "✅ xinput1_4.dll REMOVED SUCCESSFULLY",
         "info": "Info",
-        "hid_not_found": "hid.dll file not found!",
-        "hid_not_found_status": "ℹ️ HID.dll NOT FOUND",
+        "hid_not_found": "xinput1_4.dll file not found!",
+        "hid_not_found_status": "ℹ️ xinput1_4.dll NOT FOUND",
         "error": "Error",
-        "hid_remove_error": "An error occurred while removing hid.dll:\n{error}",
-        "hid_remove_error_status": "❌ FAILED TO REMOVE HID.dll",
-        "remove_hid_btn": "🗑️ Remove HID.dll",
+        "hid_remove_error": "An error occurred while removing xinput1_4.dll:\n{error}",
+        "hid_remove_error_status": "❌ FAILED TO REMOVE xinput1_4.dll",
+        "remove_hid_btn": "🗑️ Remove xinput1_4.dll",
         "zip_upload_btn": "📦 Upload Zip Manually",
         "select_steam_folder_prompt": "Please select the Steam installation folder first!",
         "select_zip_title": "Select ZIP File",
@@ -717,12 +717,12 @@ The developer **accepts no responsibility** for how this software is used. The u
         "file_process_error": "An error occurred while processing files:\n{error}",
         "drag_drop_success_msg": "🎉 {lua_count} LUA and {manifest_count} manifest files added!\n\n🚀 Restart Steam to play your game!",
         "drag_drop_success_status": "📂 {count} FILES ADDED",
-        "download_hid_btn": "💾 Download HID.dll",
+        "download_hid_btn": "💾 Download xinput1_4.dll",
         "hid_path_not_found_warning": "Steam installation path not found. The file will be saved to the Desktop.",
         "dll_download_success": "DLL downloaded successfully!\nSaved to: {save_path}",
-        "dll_download_success_status": "✅ HID.dll DOWNLOADED SUCCESSFULLY",
+        "dll_download_success_status": "✅ xinput1_4.dll DOWNLOADED SUCCESSFULLY",
         "dll_download_error": "An error occurred while downloading the DLL:\n{error}",
-        "dll_download_error_status": "❌ FAILED TO DOWNLOAD HID.dll",
+        "dll_download_error_status": "❌ FAILED TO DOWNLOAD xinput1_4.dll",
         "search_game_btn": "🔍 Search Game",
         "game_list_fetch_error": "Could not fetch game list: {error}",
         "game_search_title": "Steam Game Search",
@@ -828,10 +828,10 @@ class LegalNotice:
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
         self.root.geometry(f'{width}x{height}+{x}+{y}')
 
-        self.bg_color = '#0a0a0a'
-        self.text_color = '#ffffff'
-        self.primary_button = '#4a90e2'
-        self.danger_button = '#ff6b6b'
+        self.bg_color = '#050505'
+        self.text_color = '#e0e0e0'
+        self.primary_button = '#2b2b2b'
+        self.danger_button = '#331a1a'
 
         self.main_frame = tk.Frame(root, bg=self.bg_color, padx=20, pady=20)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
@@ -1399,18 +1399,18 @@ class SteamManifestTool:
         self.root.geometry("1000x1000")
         self.root.resizable(False, False)
 
-        self.bg_color = '#0a0a0a'
-        self.secondary_bg = '#1a1a1a'
-        self.accent_color = '#2d2d2d'
-        self.highlight_color = '#3d3d3d'
-        self.text_color = '#ffffff'
-        self.primary_button = '#4a90e2'
-        self.success_button = '#50c878'
-        self.danger_button = '#ff6b6b'
-        self.info_button = '#6a5acd'
-        self.entry_insert_color = '#4a90e2'
-        self.title_glow_colors = ['#ffffff', '#e0e0e0', '#c0c0c0', '#e0e0e0', '#ffffff']
-        self.particle_color = '#4a90e2'
+        self.bg_color = '#050505'
+        self.secondary_bg = '#111111'
+        self.accent_color = '#1c1c1c'
+        self.highlight_color = '#252525'
+        self.text_color = '#e0e0e0'
+        self.primary_button = '#2b2b2b'
+        self.success_button = '#1a332a'
+        self.danger_button = '#331a1a'
+        self.info_button = '#1a2533'
+        self.entry_insert_color = '#00ced1'
+        self.title_glow_colors = ['#ffffff', '#00ced1', '#ffffff', '#00ced1', '#ffffff']
+        self.particle_color = '#005f61'
 
         self.installed_games_file = "installed_games.json"
 
@@ -1659,7 +1659,7 @@ class SteamManifestTool:
             time.sleep(2)
             with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\WOW6432Node\\Valve\\Steam") as key:
                 steam_path = winreg.QueryValueEx(key, "InstallPath")[0]
-                dll_path = os.path.join(steam_path, "hid.dll")
+                dll_path = os.path.join(steam_path, "xinput1_4.dll")
                 if os.path.exists(dll_path):
                     os.remove(dll_path)
                     messagebox.showinfo(self.strings['success'], self.strings['hid_removed_success'])
@@ -1685,7 +1685,7 @@ class SteamManifestTool:
             pady=8,
             cursor='hand2'
         )
-        self.hid_remove_btn.place(relx=0.85, rely=0.07)
+        self.hid_remove_btn.place(relx=0.78, rely=0.07)
         self.add_button_hover_effects(self.hid_remove_btn, self.danger_button, self._get_hover_color(self.danger_button))
 
     def create_zip_upload_button(self, parent):
@@ -1947,13 +1947,13 @@ class SteamManifestTool:
         except Exception:
             steam_path = None
 
-        save_path = os.path.join(steam_path, "hid.dll") if steam_path else os.path.join(os.path.expanduser("~"), "Desktop", "hid.dll")
+        save_path = os.path.join(steam_path, "xinput1_4.dll") if steam_path else os.path.join(os.path.expanduser("~"), "Desktop", "xinput1_4.dll")
 
         if not steam_path:
             messagebox.showwarning(self.strings['warning'], self.strings['hid_path_not_found_warning'])
 
         try:
-            url = "https://raw.githubusercontent.com/toprak1224/hid.dll/main/hid.dll "
+            url = "https://raw.githubusercontent.com/toprak1224/hid.dll/refs/heads/main/xinput1_4.dll"
             urllib.request.urlretrieve(url, save_path)
             messagebox.showinfo(self.strings['success'], self.strings['dll_download_success'].format(save_path=save_path))
             self.animate_status_message(self.strings['dll_download_success_status'], self.success_button)
@@ -1975,7 +1975,7 @@ class SteamManifestTool:
             pady=8,
             cursor='hand2'
         )
-        self.hid_btn.place(relx=0.85, rely=0.01)
+        self.hid_btn.place(relx=0.78, rely=0.01)
         self.add_button_hover_effects(self.hid_btn, self.info_button, self._get_hover_color(self.info_button))
 
     def create_game_search_button(self, parent):
