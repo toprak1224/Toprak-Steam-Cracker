@@ -25,7 +25,7 @@ import winreg
 import json
 import re
 
-VERSION = "4.4"
+VERSION = "4.5"
 VERSION_CHECK_URL = "https://raw.githubusercontent.com/toprak1224/Toprak-Steam-Cracker/refs/heads/main/verison"
 STEAM_APP_LIST_CACHE_FILE = "steam_app_list_cache.json"
 STEAM_APP_LIST_HEADERS = {
@@ -610,7 +610,8 @@ Lütfen bu yazılımı yalnızca **etik ve yasal sınırlar içinde** kullanın�
         "installing_to_steam_status": "⚙️ STEAM'E KURULUYOR...",
         "game_crack_success_status": "� OYUN BAŞARIYLA KIRILDI: ID {app_id}",
         "install_fail_status": "❌ KURULUM BAŞARISIZ!",
-        "download_fail_status": "❌ İNDİRME BAŞARISIZ!",
+        "download_fail_status": "❌ Oyun Mevcut Değil",
+        "game_search_note": "⚠️ Not: Bütün oyunlar bulunmuyor. Eksik oyun varsa lütfen Discord sunucudan talep ediniz.",
         "download_error_title": "❌ İNDİRME HATASI",
         "download_error_msg": "İndirme hatası: {error}",
         "unexpected_error_status": "❌ HATA OLUŞTU!",
@@ -758,7 +759,8 @@ The developer **accepts no responsibility** for how this software is used. The u
         "installing_to_steam_status": "⚙️ INSTALLING TO STEAM...",
         "game_crack_success_status": "🎉 GAME CRACKED SUCCESSFULLY: ID {app_id}",
         "install_fail_status": "❌ INSTALLATION FAILED!",
-        "download_fail_status": "❌ DOWNLOAD FAILED!",
+        "download_fail_status": "❌ Game Not Available",
+        "game_search_note": "⚠️ Note: Not all games are available. Please request missing games on our Discord server.",
         "download_error_title": "❌ DOWNLOAD ERROR",
         "download_error_msg": "Download error: {error}",
         "unexpected_error_status": "❌ AN ERROR OCCURRED!",
@@ -1303,7 +1305,10 @@ class OnlineFixDownloaderWindow:
             messagebox.showerror("Hata", "Geçersiz seçim!", parent=self.window)
             return
         game_name = self.games_with_names.get(game_id, f"Oyun {game_id}")
-        self._start_download(game_id, game_name)
+        save_dir = filedialog.askdirectory(title="İndirme Konumunu Seçin / Select Download Location", parent=self.window)
+        if not save_dir:
+            return
+        self._start_download(game_id, game_name, save_dir)
 
     def open_manual_input(self):
         game_id = simpledialog.askstring("Manuel Game ID Girişi", "Lütfen Steam ID girin:", parent=self.window)
@@ -1315,15 +1320,18 @@ class OnlineFixDownloaderWindow:
             return
         cache = self.load_cache()
         game_name = cache.get(game_id, f"Oyun {game_id}")
-        self._start_download(game_id, game_name)
+        save_dir = filedialog.askdirectory(title="İndirme Konumunu Seçin / Select Download Location", parent=self.window)
+        if not save_dir:
+            return
+        self._start_download(game_id, game_name, save_dir)
 
-    def _start_download(self, game_id, game_name):
+    def _start_download(self, game_id, game_name, save_dir):
         self.progress_bar['value'] = 0
         self.append_status(f"🚀 '{game_name}' (ID: {game_id}) indirme başlatıldı...")
-        threading.Thread(target=self._download_thread, args=(game_id, game_name), daemon=True).start()
+        threading.Thread(target=self._download_thread, args=(game_id, game_name, save_dir), daemon=True).start()
 
-    def _download_thread(self, game_id, game_name):
-        desktop_path = os.path.join(os.path.expanduser('~'), 'Desktop')
+    def _download_thread(self, game_id, game_name, save_dir):
+        # desktop_path = os.path.join(os.path.expanduser('~'), 'Desktop')
         download_url = ONLINEFIX_DOWNLOAD_URL_TEMPLATE.format(game_id=game_id)
         try:
             self.root.after(0, lambda: self.append_status(f"'{game_name}' indiriliyor..."))
@@ -1341,7 +1349,7 @@ class OnlineFixDownloaderWindow:
                 # Varsayılan olarak .rar uzantısı ile game_id adına kaydet
                 file_name = f"{game_id}.rar"
 
-            file_path = os.path.join(desktop_path, file_name)
+            file_path = os.path.join(save_dir, file_name)
             total_size = int(response.headers.get('content-length', 0))
             downloaded = 0
             with open(file_path, 'wb') as f:
@@ -1355,7 +1363,7 @@ class OnlineFixDownloaderWindow:
                         self.root.after(0, lambda v=percent: self.progress_bar.configure(value=v))
 
             if file_name.lower().endswith('.zip'):
-                extract_folder = os.path.join(desktop_path, re.sub(r'[<>:"/\\|?*]', '_', f"{game_name}_Extracted"))
+                extract_folder = os.path.join(save_dir, re.sub(r'[<>:"/\\|?*]', '_', f"{game_name}_Extracted"))
                 os.makedirs(extract_folder, exist_ok=True)
                 try:
                     with zipfile.ZipFile(file_path, 'r') as zip_ref:
@@ -1370,7 +1378,7 @@ class OnlineFixDownloaderWindow:
                     err_text = str(e)
                     self.root.after(0, lambda err_text=err_text: messagebox.showerror("Hata", f"Zip dosyası çıkarılamadı: {err_text}", parent=self.window))
             else:
-                self.root.after(0, lambda: [self.progress_bar.configure(value=100), self.append_status("✅ İndirme Tamamlandı!"), messagebox.showinfo("İndirme Tamamlandı", f"{game_name} masaüstüne indirildi!\n\nKonum: {file_path}", parent=self.window)])
+                self.root.after(0, lambda: [self.progress_bar.configure(value=100), self.append_status("✅ İndirme Tamamlandı!"), messagebox.showinfo("İndirme Tamamlandı", f"{game_name} başarıyla indirildi!\n\nKonum: {file_path}", parent=self.window)])
         except requests.exceptions.HTTPError as e:
             status_code = getattr(e.response, 'status_code', 'unknown')
             self.root.after(0, lambda status_code=status_code: messagebox.showerror("Hata", f"Sunucu hatası: {status_code}. Bu oyun için dosya bulunamadı.", parent=self.window))
@@ -1396,9 +1404,10 @@ class SteamManifestTool:
         self.strings = LANGUAGES[lang_code]
         
         self.root.title(self.strings['main_title'])
-        self.root.geometry("1000x1000")
-        self.root.resizable(False, False)
+        self.root.geometry("1000x800")
+        self.root.resizable(False, True)
 
+        # Colors & Constants
         self.bg_color = '#050505'
         self.secondary_bg = '#111111'
         self.accent_color = '#1c1c1c'
@@ -1409,56 +1418,99 @@ class SteamManifestTool:
         self.danger_button = '#331a1a'
         self.info_button = '#1a2533'
         self.entry_insert_color = '#00ced1'
-        self.title_glow_colors = ['#ffffff', '#00ced1', '#ffffff', '#00ced1', '#ffffff']
         self.particle_color = '#005f61'
-
+        self.title_glow_colors = ['#ffffff', '#00ced1', '#ffffff', '#00ced1', '#ffffff']
+        
         self.installed_games_file = "installed_games.json"
-
+        
         self.animation_running = False
         self.pulse_direction = 1
         self.pulse_alpha = 0.3
 
+        # Background Animation (Layer 0)
         self.create_animated_background()
 
-        main_frame = tk.Frame(root, bg=self.bg_color, padx=40, pady=30)
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        # Root Container (Layer 1) - Transparent if possible, or handles layout
+        # Note: We pack this fill=BOTH. It will sit ON TOP of bg_canvas.
+        # To see particles, we would need transparency, which Tkinter struggles with.
+        # For now, we prioritize the UI working.
+        self.root_container = tk.Frame(root, bg=self.bg_color)
+        self.root_container.pack(fill=tk.BOTH, expand=True)
 
-        title_frame = tk.Frame(main_frame, bg=self.bg_color)
-        title_frame.pack(pady=(0, 30))
+        # 1. Fixed Footer (Pack First to ensure space)
+        self.footer_frame = tk.Frame(self.root_container, bg=self.secondary_bg, pady=10, padx=20)
+        self.footer_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        self.create_footer_content(self.footer_frame)
 
-        self.title_label = tk.Label(title_frame, text=self.strings['app_header'],
+        # 2. Scrollable Area (Takes remaining space)
+        self.canvas_container = tk.Frame(self.root_container, bg=self.bg_color)
+        self.canvas_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        self.canvas = tk.Canvas(self.canvas_container, bg=self.bg_color, highlightthickness=0)
+        self.scrollbar = ttk.Scrollbar(self.canvas_container, orient="vertical", command=self.canvas.yview)
+        
+        # Inner Frame for Content
+        self.scrollable_frame = tk.Frame(self.canvas, bg=self.bg_color, padx=30, pady=20)
+        
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Scroll Events
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+        self.canvas.bind(
+            "<Configure>",
+            lambda e: self.canvas.itemconfig(self.canvas_window, width=e.width)
+        )
+        def _on_mousewheel(event):
+            if self.canvas.winfo_exists():
+                self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        self.root.bind_all("<MouseWheel>", _on_mousewheel)
+
+        # --- Populate Scrollable Content ---
+        
+        # Header & Tools
+        header_frame = tk.Frame(self.scrollable_frame, bg=self.bg_color)
+        header_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        tools_frame = tk.Frame(header_frame, bg=self.bg_color)
+        tools_frame.pack(side=tk.TOP, fill=tk.X, pady=(0, 5))
+        self.create_top_tools_bar(tools_frame)
+
+        self.title_label = tk.Label(header_frame, text=self.strings['app_header'],
                               font=("Segoe UI", 24, "bold"),
                               fg=self.text_color, bg=self.bg_color)
         self.title_label.pack()
 
-        self.subtitle_label = tk.Label(title_frame, text=self.strings['app_subtitle'],
+        self.subtitle_label = tk.Label(header_frame, text=self.strings['app_subtitle'],
                                  font=("Segoe UI", 12, "italic"),
                                  fg=self.primary_button, bg=self.bg_color)
-        self.subtitle_label.pack(pady=(5, 0))
+        self.subtitle_label.pack(pady=(0, 10))
 
-        self.separator = tk.Frame(title_frame, height=2, bg=self.primary_button)
-        self.separator.pack(fill=tk.X, pady=(15, 0))
+        tk.Frame(header_frame, height=2, bg=self.primary_button).pack(fill=tk.X, pady=(0, 20))
 
-        self.create_steam_path_section(main_frame)
-        self.create_game_id_section(main_frame)
-        self.create_drag_drop_section(main_frame)
-        self.create_button_section(main_frame)
-        self.create_status_section(main_frame)
-        self.create_footer(main_frame)
+        # Two-Column Inputs
+        input_container = tk.Frame(self.scrollable_frame, bg=self.bg_color)
+        input_container.pack(fill=tk.X, pady=(0, 10))
+        
+        left_col = tk.Frame(input_container, bg=self.bg_color)
+        left_col.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+        right_col = tk.Frame(input_container, bg=self.bg_color)
+        right_col.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
 
-        self.create_game_search_button(main_frame)
-        self.create_hid_download_button(main_frame)
-        self.create_hid_remove_button(main_frame)
-        self.create_steamdb_button(main_frame)
-        self.create_sss_button(main_frame)
-        self.create_zip_upload_button(main_frame)
-        self.create_online_fix_button(main_frame)
-        self.create_show_installed_games_button(main_frame)
-        self.create_about_button(main_frame)
+        self.create_steam_path_section(left_col)
+        self.create_game_id_section(right_col)
 
-        self.app_id_entry.bind('<Return>', lambda e: self.download_and_process())
-        self.app_id_entry.focus()
-
+        self.create_drag_drop_section(self.scrollable_frame)
+        self.create_status_section(self.scrollable_frame)
+        
+        # --- Finalization ---
         self.start_animations()
         self.root.attributes('-alpha', 0.0)
         self.entrance_animation()
@@ -1466,7 +1518,65 @@ class SteamManifestTool:
         self.game_list = []
         threading.Thread(target=self.load_game_list, daemon=True).start()
 
+        self.app_id_entry.bind('<Return>', lambda e: self.download_and_process())
+        self.app_id_entry.focus()
         self.auto_detect_steam_path()
+
+    def create_top_tools_bar(self, parent):
+        # Pack small utility buttons at the top
+        btn_config = {'bg': self.info_button, 'fg': self.text_color, 'relief': tk.FLAT, 'font': ("Segoe UI", 9, "bold")}
+        
+        tk.Button(parent, text=self.strings['search_game_btn'], command=self.show_game_search, **btn_config).pack(side=tk.LEFT, padx=2)
+        tk.Button(parent, text=self.strings['online_fix_btn'], command=self.open_online_fix_downloader, **btn_config).pack(side=tk.LEFT, padx=2)
+        tk.Button(parent, text=self.strings['download_hid_btn'], command=self.download_hid_dll, **btn_config).pack(side=tk.RIGHT, padx=2)
+        tk.Button(parent, text=self.strings['remove_hid_btn'], command=self.remove_hid_dll, bg=self.danger_button, fg=self.text_color, relief=tk.FLAT, font=("Segoe UI", 9, "bold")).pack(side=tk.RIGHT, padx=2)
+
+    def create_footer_content(self, parent):
+        # Action Buttons Row
+        action_frame = tk.Frame(parent, bg=self.secondary_bg)
+        action_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        # Center the main buttons
+        container = tk.Frame(action_frame, bg=self.secondary_bg)
+        container.pack(expand=True)
+        
+        big_btn_font = ('Segoe UI', 11, 'bold')
+        
+        self.download_process_btn = tk.Button(container, text=self.strings['download_install_btn'], command=self.download_and_process,
+            bg=self.success_button, fg=self.text_color, font=big_btn_font, relief=tk.FLAT, padx=25, pady=10, cursor='hand2')
+        self.download_process_btn.pack(side=tk.LEFT, padx=10)
+        
+        self.remove_btn = tk.Button(container, text=self.strings['remove_game_btn'], command=self.remove_game_from_entry,
+            bg=self.danger_button, fg=self.text_color, font=big_btn_font, relief=tk.FLAT, padx=25, pady=10, cursor='hand2')
+        self.remove_btn.pack(side=tk.LEFT, padx=10)
+        
+        self.restart_steam_btn = tk.Button(container, text=self.strings['restart_steam_btn'], command=self.restart_steam,
+            bg=self.info_button, fg=self.text_color, font=big_btn_font, relief=tk.FLAT, padx=25, pady=10, cursor='hand2')
+        self.restart_steam_btn.pack(side=tk.LEFT, padx=10)
+        
+        # Utils Row (Bottom of Footer)
+        utils_frame = tk.Frame(parent, bg=self.secondary_bg)
+        utils_frame.pack(fill=tk.X)
+        
+        # Left Utils
+        left_utils = tk.Frame(utils_frame, bg=self.secondary_bg)
+        left_utils.pack(side=tk.LEFT)
+        
+        small_btn_font = ('Segoe UI', 9)
+        tk.Button(left_utils, text=self.strings['installed_games_btn'], command=self.show_installed_games, bg=self.info_button, fg=self.text_color, relief=tk.FLAT, font=small_btn_font).pack(side=tk.LEFT, padx=2)
+        tk.Button(left_utils, text=self.strings['faq_btn'], command=self.open_faq_link, bg=self.info_button, fg=self.text_color, relief=tk.FLAT, font=small_btn_font).pack(side=tk.LEFT, padx=2)
+        
+        # Right Utils
+        right_utils = tk.Frame(utils_frame, bg=self.secondary_bg)
+        right_utils.pack(side=tk.RIGHT)
+        
+
+        tk.Button(right_utils, text=self.strings['zip_upload_btn'], command=self.upload_zip_file, bg=self.info_button, fg=self.text_color, relief=tk.FLAT, font=small_btn_font).pack(side=tk.LEFT, padx=2)
+        tk.Button(right_utils, text=self.strings['open_steamdb_btn'], command=lambda: webbrowser.open("https://steamdb.info/"), bg=self.info_button, fg=self.text_color, relief=tk.FLAT, font=small_btn_font).pack(side=tk.LEFT, padx=2)
+        tk.Button(right_utils, text=self.strings['about_btn'], command=self.show_about_dialog, bg=self.info_button, fg=self.text_color, relief=tk.FLAT, font=small_btn_font).pack(side=tk.LEFT, padx=2)
+
+        # Author Label
+        tk.Label(parent, text=self.strings['footer_text'] + " | " + self.strings['version'], font=("Segoe UI", 8), fg="#555555", bg=self.secondary_bg).pack(side=tk.BOTTOM, pady=(10,0))
 
     def _get_hover_color(self, base_hex_color):
         base_hex = base_hex_color.lstrip('#')
@@ -1806,24 +1916,24 @@ class SteamManifestTool:
 
     def create_drag_drop_section(self, parent):
         self.drag_frame = tk.Frame(parent, bg=self.secondary_bg, relief=tk.FLAT, bd=0)
-        self.drag_frame.pack(fill=tk.X, pady=(0, 20))
+        self.drag_frame.pack(fill=tk.X, pady=(0, 15))
 
         border_frame = tk.Frame(self.drag_frame, bg=self.info_button, height=1)
         border_frame.pack(fill=tk.X)
 
-        inner_frame = tk.Frame(self.drag_frame, bg=self.secondary_bg, padx=25, pady=25)
+        inner_frame = tk.Frame(self.drag_frame, bg=self.secondary_bg, padx=15, pady=15)
         inner_frame.pack(fill=tk.BOTH, expand=True)
 
         drag_label = tk.Label(inner_frame, text=self.strings['drag_drop_title'],
-                            font=("Segoe UI", 13, "bold"),
+                            font=("Segoe UI", 11, "bold"),
                             fg=self.text_color, bg=self.secondary_bg)
-        drag_label.pack(anchor=tk.W, pady=(0, 15))
+        drag_label.pack(anchor=tk.W, pady=(0, 8))
 
         self.drop_area = tk.Label(inner_frame, text=self.strings['drag_drop_label'],
-                                font=("Segoe UI", 11),
+                                font=("Segoe UI", 10),
                                 bg=self.highlight_color, fg=self.text_color,
                                 relief=tk.RAISED, bd=2,
-                                padx=50, pady=40)
+                                padx=20, pady=20)
         self.drop_area.pack(fill=tk.BOTH, expand=True)
 
         if hasattr(self.drop_area, 'drop_target_register'):
@@ -2010,8 +2120,12 @@ class SteamManifestTool:
         search_window.configure(bg=self.secondary_bg)
         search_window.resizable(False, False)
 
+
         tk.Label(search_window, text=self.strings['search_steam_game_header'], font=("Segoe UI", 16, "bold"),
-                fg=self.text_color, bg=self.secondary_bg).pack(pady=10)
+                fg=self.text_color, bg=self.secondary_bg).pack(pady=(10, 5))
+
+        tk.Label(search_window, text=self.strings['game_search_note'], font=("Segoe UI", 10, "bold"),
+                 fg='#50c878', bg=self.secondary_bg).pack(pady=(0, 10))
 
         search_var = tk.StringVar()
         search_entry = tk.Entry(search_window, textvariable=search_var, font=("Segoe UI", 12),
@@ -2171,120 +2285,70 @@ class SteamManifestTool:
 
     def create_steam_path_section(self, parent):
         self.path_frame = tk.Frame(parent, bg=self.secondary_bg, relief=tk.FLAT, bd=0)
-        self.path_frame.pack(fill=tk.X, pady=(0, 20))
+        self.path_frame.pack(fill=tk.BOTH, expand=True)
 
         border_frame = tk.Frame(self.path_frame, bg=self.primary_button, height=1)
         border_frame.pack(fill=tk.X)
 
-        self.path_inner_frame = tk.Frame(self.path_frame, bg=self.secondary_bg, padx=25, pady=25)
+        self.path_inner_frame = tk.Frame(self.path_frame, bg=self.secondary_bg, padx=15, pady=15)
         self.path_inner_frame.pack(fill=tk.BOTH, expand=True)
 
         self.path_label = tk.Label(self.path_inner_frame, text=self.strings['steam_path_section_title'],
-                             font=("Segoe UI", 13, "bold"),
+                             font=("Segoe UI", 11, "bold"),
                              fg=self.text_color, bg=self.secondary_bg)
-        self.path_label.pack(anchor=tk.W, pady=(0, 15))
+        self.path_label.pack(anchor=tk.W, pady=(0, 6))
 
         self.path_entry_frame = tk.Frame(self.path_inner_frame, bg=self.secondary_bg)
         self.path_entry_frame.pack(fill=tk.X)
 
         self.steam_path_var = tk.StringVar()
         self.path_entry = tk.Entry(self.path_entry_frame, textvariable=self.steam_path_var,
-                                 font=("Segoe UI", 12),
+                                 font=("Segoe UI", 10),
                                  bg=self.highlight_color, fg=self.text_color,
                                  relief=tk.FLAT, bd=0,
                                  insertbackground=self.entry_insert_color)
-        self.path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=12)
+        self.path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=8)
 
         self.browse_btn = tk.Button(self.path_entry_frame, text=self.strings['browse_btn'],
-                                  font=("Segoe UI", 10, "bold"),
+                                  font=("Segoe UI", 9, "bold"),
                                   bg=self.primary_button, fg=self.text_color,
                                   relief=tk.FLAT, bd=0,
                                   command=self.select_steam_folder,
                                   cursor='hand2')
-        self.browse_btn.pack(side=tk.RIGHT, padx=(15, 0), ipady=8, ipadx=20)
+        self.browse_btn.pack(side=tk.RIGHT, padx=(8, 0), ipady=4, ipadx=10)
 
         self.add_button_hover_effects(self.browse_btn, self.primary_button, self._get_hover_color(self.primary_button))
         self.add_entry_hover_effects(self.path_entry)
 
     def create_game_id_section(self, parent):
         self.input_frame = tk.Frame(parent, bg=self.secondary_bg, relief=tk.FLAT, bd=0)
-        self.input_frame.pack(fill=tk.X, pady=(0, 25))
+        self.input_frame.pack(fill=tk.BOTH, expand=True)
 
         border_frame = tk.Frame(self.input_frame, bg=self.success_button, height=1)
         border_frame.pack(fill=tk.X)
 
-        self.inner_frame = tk.Frame(self.input_frame, bg=self.secondary_bg, padx=25, pady=25)
+        self.inner_frame = tk.Frame(self.input_frame, bg=self.secondary_bg, padx=15, pady=15)
         self.inner_frame.pack(fill=tk.BOTH, expand=True)
 
         self.id_label = tk.Label(self.inner_frame, text=self.strings['game_id_section_title'],
-                          font=("Segoe UI", 13, "bold"),
+                          font=("Segoe UI", 11, "bold"),
                           fg=self.text_color, bg=self.secondary_bg)
-        self.id_label.pack(anchor=tk.W, pady=(0, 15))
+        self.id_label.pack(anchor=tk.W, pady=(0, 6))
 
         self.app_id_var = tk.StringVar()
         self.app_id_entry = tk.Entry(self.inner_frame, textvariable=self.app_id_var,
-                                    font=("Segoe UI", 16, "bold"),
+                                    font=("Segoe UI", 14, "bold"),
                                     bg=self.highlight_color, fg=self.text_color,
                                     relief=tk.FLAT, bd=0,
                                     justify=tk.CENTER,
                                     insertbackground=self.entry_insert_color)
-        self.app_id_entry.pack(fill=tk.X, ipady=15)
+        self.app_id_entry.pack(fill=tk.X, ipady=8)
 
         self.add_entry_hover_effects(self.app_id_entry)
         self.app_id_entry.bind('<KeyRelease>', self.validate_input_visual)
 
     def create_button_section(self, parent):
-        button_frame = tk.Frame(parent, bg=self.bg_color)
-        button_frame.pack(pady=(0, 25))
-
-        self.download_process_btn = tk.Button(
-            button_frame,
-            text=self.strings['download_install_btn'],
-            command=self.download_and_process,
-            bg=self.success_button,
-            fg=self.text_color,
-            font=('Segoe UI', 12, 'bold'),
-            relief=tk.FLAT,
-            bd=0,
-            padx=35,
-            pady=15,
-            cursor='hand2'
-        )
-        self.download_process_btn.pack(side=tk.LEFT, padx=(0, 15))
-
-        self.remove_btn = tk.Button(
-            button_frame,
-            text=self.strings['remove_game_btn'],
-            command=self.remove_game_from_entry,
-            bg=self.danger_button,
-            fg=self.text_color,
-            font=('Segoe UI', 12, 'bold'),
-            relief=tk.FLAT,
-            bd=0,
-            padx=35,
-            pady=15,
-            cursor='hand2'
-        )
-        self.remove_btn.pack(side=tk.LEFT, padx=(15, 15))
-
-        self.restart_btn = tk.Button(
-            button_frame,
-            text=self.strings['restart_steam_btn'],
-            command=self.restart_steam,
-            bg=self.primary_button,
-            fg=self.text_color,
-            font=('Segoe UI', 12, 'bold'),
-            relief=tk.FLAT,
-            bd=0,
-            padx=35,
-            pady=15,
-            cursor='hand2'
-        )
-        self.restart_btn.pack(side=tk.LEFT, padx=(15, 0))
-
-        self.add_button_hover_effects(self.download_process_btn, self.success_button, self._get_hover_color(self.success_button), original_padx=35, original_pady=15)
-        self.add_button_hover_effects(self.remove_btn, self.danger_button, self._get_hover_color(self.danger_button), original_padx=35, original_pady=15)
-        self.add_button_hover_effects(self.restart_btn, self.primary_button, self._get_hover_color(self.primary_button), original_padx=35, original_pady=15)
+        pass
 
     def create_status_section(self, parent):
         status_frame = tk.Frame(parent, bg=self.bg_color)
@@ -2318,13 +2382,7 @@ class SteamManifestTool:
         self.progress.pack_forget()
 
     def create_footer(self, parent):
-        footer_frame = tk.Frame(parent, bg=self.bg_color)
-        footer_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(25, 0))
-
-        self.footer_label = tk.Label(footer_frame, text=self.strings['footer_text'],
-                              font=("Segoe UI", 9, "italic"),
-                              fg='#666666', bg=self.bg_color)
-        self.footer_label.pack(side=tk.RIGHT)
+        pass
 
     def add_button_hover_effects(self, button, normal_color, hover_color, original_padx=None, original_pady=None):
         def _to_number(value):
@@ -2775,7 +2833,7 @@ class SteamManifestTool:
         self.online_fix_btn.place(relx=0.37, rely=0.95)
         self.add_button_hover_effects(self.online_fix_btn, self.info_button, self._get_hover_color(self.info_button))
 
-    def open_online_fix_window(self):
+    def open_online_fix_downloader(self):
         OnlineFixDownloaderWindow(self)
     # --- Online Fix sonu ---
 
