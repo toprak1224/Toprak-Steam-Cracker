@@ -1,0 +1,1840 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Toprak Steam Cracker</title>
+<style>
+/* ─── Reset & Base ────────────────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg:         #0a0a0f;
+  --bg2:        #0f0f1a;
+  --bg3:        #141421;
+  --bg4:        #1c1c2e;
+  --border:     #1e1e32;
+  --accent:     #fd0116;
+  --accent2:    #ff4d00;
+  --text:       #e2e2f0;
+  --muted:      #6666aa;
+  --success:    #00c9a7;
+  --danger:     #ff4757;
+  --warn:       #ffd43b;
+  --card-w:     220px;
+  --sidebar-w:  220px;
+  --radius:     10px;
+  --transition: 0.2s ease;
+}
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+a { color: var(--accent2); text-decoration: none; }
+a:hover { text-decoration: underline; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ─── Layout ──────────────────────────────────────────────────────────── */
+#update-banner {
+  background: linear-gradient(90deg, #2a2500, #1a1a00);
+  border-bottom: 1px solid var(--warn);
+  color: var(--warn);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 20px;
+  flex-shrink: 0;
+}
+#update-banner.hidden { display: none; }
+#update-banner span { flex: 1; }
+#update-banner .btn-banner {
+  background: var(--warn);
+  color: #000;
+  border: none;
+  border-radius: 5px;
+  padding: 3px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+#update-banner .btn-close-banner {
+  background: none;
+  border: none;
+  color: var(--warn);
+  cursor: pointer;
+  font-size: 16px;
+  opacity: 0.7;
+  line-height: 1;
+}
+
+#layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+#particles-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ─── Sidebar ─────────────────────────────────────────────────────────── */
+#sidebar {
+  width: var(--sidebar-w);
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.sidebar-logo {
+  padding: 24px 20px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.logo-icon {
+  font-size: 22px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 8px;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.logo-text {
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.1;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 0.5px;
+}
+.logo-sub {
+  font-size: 12px;
+  color: var(--text);
+  margin-top: 3px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 8px var(--accent);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 8px;
+  gap: 2px;
+  flex: 1;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+  text-align: left;
+  width: 100%;
+}
+.nav-item:hover { background: var(--bg4); color: var(--text); }
+.nav-item.active { background: var(--bg4); color: var(--text); }
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  width: 3px;
+  height: 20px;
+  background: linear-gradient(var(--accent), var(--accent2));
+  border-radius: 2px;
+}
+.nav-item { position: relative; }
+.nav-icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+
+.dll-status-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 15px 0;
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.dll-status-container:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.dll-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: all 0.3s;
+}
+.dll-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: color 0.3s;
+}
+
+.sidebar-footer {
+  padding: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ─── Main Content ────────────────────────────────────────────────────── */
+#main {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+.page {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding: 32px 36px;
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.page.active {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.page-header h1 {
+  font-size: 26px;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--text), var(--muted));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.header-actions { display: flex; gap: 10px; align-items: center; }
+
+/* ─── Buttons ─────────────────────────────────────────────────────────── */
+.btn {
+  border: none;
+  border-radius: 7px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter var(--transition), transform var(--transition);
+}
+.btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn-primary  { background: var(--accent);  color: #fff; }
+.btn-success  { background: var(--success); color: #000; }
+.btn-danger   { background: var(--danger);  color: #fff; }
+.btn-ghost    { background: var(--bg4);     color: var(--text); }
+.btn-cyan     { background: var(--accent2); color: #000; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; filter: none; transform: none; }
+
+/* ─── Search Input ────────────────────────────────────────────────────── */
+.search-input {
+  background: var(--bg4);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  padding: 8px 14px;
+  outline: none;
+  transition: border var(--transition);
+  min-width: 200px;
+}
+.search-input:focus { border-color: var(--accent); }
+.search-input::placeholder { color: var(--muted); }
+
+/* ─── Games Grid ──────────────────────────────────────────────────────── */
+#games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-w), 1fr));
+  gap: 16px;
+}
+
+.game-card {
+  position: relative;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+}
+.game-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+  border-color: var(--accent);
+}
+.game-card img {
+  width: 100%;
+  aspect-ratio: 460 / 215;
+  object-fit: cover;
+  display: block;
+  background: var(--bg4);
+}
+.game-card .card-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition);
+  backdrop-filter: blur(2px);
+}
+.game-card:hover .card-overlay { opacity: 1; }
+.card-info {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+.card-name {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+.card-id { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* Skeleton */
+.skeleton-card {
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.skeleton-cover {
+  width: 100%;
+  aspect-ratio: 460 / 215;
+  background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 50%, var(--bg3) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+.skeleton-info {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+.skeleton-line {
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 50%, var(--bg3) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  margin-bottom: 6px;
+}
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* installing state on card */
+.game-card.installing .card-overlay {
+  opacity: 1;
+  background: rgba(0,0,0,0.85);
+  flex-direction: column;
+  gap: 10px;
+}
+.installing-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Empty state */
+#empty-library {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--muted);
+}
+#empty-library .empty-icon { font-size: 64px; margin-bottom: 16px; opacity: 0.4; }
+#empty-library h2 { font-size: 22px; color: var(--text); margin-bottom: 8px; }
+#empty-library p  { font-size: 14px; margin-bottom: 24px; }
+
+/* ─── Warning Banner ──────────────────────────────────────────────────── */
+.warn-banner {
+  background: linear-gradient(90deg, #2d2000, #1a1500);
+  border: 1px solid #55440022;
+  border-left: 3px solid var(--warn);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--warn);
+  margin-bottom: 24px;
+}
+
+/* ─── Tabs ────────────────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 20px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color var(--transition), border-color var(--transition);
+  margin-bottom: -1px;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ─── Search Results (Add Game) ───────────────────────────────────────── */
+.add-search-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.add-search-row .search-input { flex: 1; font-size: 14px; padding: 10px 16px; }
+
+#search-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  max-height: calc(100vh - 380px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.result-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color var(--transition), transform var(--transition);
+}
+.result-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.result-card img {
+  width: 100%;
+  aspect-ratio: 460 / 215;
+  object-fit: cover;
+  display: block;
+  background: var(--bg4);
+}
+.result-card-info {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+.result-card-name {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.result-card-id { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+.result-card-btn {
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  padding: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+  transition: filter var(--transition);
+}
+.result-card-btn:hover { filter: brightness(1.2); }
+.result-card-btn.installing-btn { background: var(--bg4); color: var(--muted); cursor: not-allowed; }
+.result-card-btn.done-btn { background: var(--success); color: #000; cursor: default; }
+
+/* File Upload Area */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  transition: border-color var(--transition), background var(--transition);
+}
+.drop-zone:hover { border-color: var(--accent); background: rgba(108,99,255,0.04); }
+.drop-zone .dz-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+.drop-zone p { margin-bottom: 16px; line-height: 1.6; }
+
+/* ─── Online Fix ──────────────────────────────────────────────────────── */
+.of-search-row { display: flex; gap: 10px; margin-bottom: 20px; }
+.of-search-row .search-input { flex: 1; }
+#of-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: calc(100vh - 320px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.of-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  gap: 12px;
+  transition: border-color var(--transition);
+}
+.of-item:hover { border-color: var(--accent); }
+.of-item-name { font-size: 13px; font-weight: 500; flex: 1; }
+.of-item-status { font-size: 11px; color: var(--muted); min-width: 80px; text-align: right; }
+
+/* ─── Settings ────────────────────────────────────────────────────────── */
+.settings-section {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.settings-section h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 16px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.settings-row label {
+  font-size: 13px;
+  color: var(--muted);
+  min-width: 100px;
+}
+.settings-row .search-input { flex: 1; }
+.settings-row:last-child { margin-bottom: 0; }
+.btn-group { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+/* ─── About / FAQ ─────────────────────────────────────────────────────── */
+.about-hero {
+  text-align: center;
+  padding: 32px 24px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+}
+.about-hero .app-icon { font-size: 56px; margin-bottom: 12px; }
+.about-hero h2 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+.about-hero .ver { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+.about-hero p { font-size: 13px; color: var(--muted); max-width: 480px; margin: 0 auto 16px; line-height: 1.7; }
+.about-links { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+.faq-item {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.faq-question {
+  padding: 14px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background var(--transition);
+}
+.faq-question:hover { background: var(--bg4); }
+.faq-question .faq-arrow { transition: transform var(--transition); }
+.faq-question.open .faq-arrow { transform: rotate(180deg); }
+.faq-answer {
+  display: none;
+  padding: 0 18px 14px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.faq-answer.open { display: block; }
+
+/* ─── Toast ───────────────────────────────────────────────────────────── */
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9000;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  max-width: 320px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  animation: toastIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  pointer-events: all;
+  border-left: 3px solid transparent;
+}
+.toast.removing { animation: toastOut 0.25s ease forwards; }
+@keyframes toastIn  { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes toastOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(110%); opacity: 0; } }
+.toast.success { background: #0a1f1c; border-left-color: var(--success); }
+.toast.error   { background: #1f0a0e; border-left-color: var(--danger); }
+.toast.info    { background: #0a0f2a; border-left-color: var(--accent2); }
+.toast.warn    { background: #1f1a00; border-left-color: var(--warn); }
+.toast-icon    { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.toast-body    { flex: 1; }
+.toast-title   { font-weight: 700; margin-bottom: 2px; }
+.toast-msg     { color: var(--muted); font-size: 12px; }
+
+/* ─── Context Menu ────────────────────────────────────────────────────── */
+#ctx-menu {
+  position: fixed;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  z-index: 8000;
+  min-width: 180px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  animation: fadeIn 0.12s ease;
+}
+#ctx-menu.hidden { display: none; }
+@keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 7px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.ctx-item:hover { background: var(--bg4); }
+.ctx-item.danger { color: var(--danger); }
+.ctx-item.danger:hover { background: rgba(255,71,87,0.1); }
+.ctx-sep { height: 1px; background: var(--border); margin: 4px 6px; }
+
+/* ─── Modals ──────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+.modal-overlay.hidden { display: none; }
+.modal-box {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px 32px;
+  max-width: 520px;
+  width: 90%;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+}
+.modal-box h3 { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+.modal-box p  { font-size: 13px; color: var(--muted); line-height: 1.6; }
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+/* Legal Modal */
+.legal-box { max-width: 640px; }
+.legal-box h2 {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.legal-scroll {
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.8;
+  margin-bottom: 20px;
+}
+.legal-scroll h4 { color: var(--text); font-size: 13px; margin: 12px 0 6px; }
+.legal-check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.legal-check-row input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+/* ─── Progress Bars ───────────────────────────────────────────────────── */
+.progress-bar-wrap {
+  background: var(--bg);
+  border-radius: 4px;
+  height: 4px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 4px;
+  width: 0%;
+  transition: width 0.4s ease;
+  animation: progressPulse 1.5s infinite;
+}
+@keyframes progressPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.7; }
+}
+
+/* ─── Utility ─────────────────────────────────────────────────────────── */
+.hidden    { display: none !important; }
+.text-muted { color: var(--muted); }
+.mt-8  { margin-top: 8px; }
+.mt-16 { margin-top: 16px; }
+.flex  { display: flex; }
+.gap-8 { gap: 8px; }
+.items-center { align-items: center; }
+/* ─── Splash Screen ────────────────────────────────────────────────────── */
+#splash-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.5s ease, visibility 0.5s;
+}
+#splash-screen.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+.splash-logo {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  margin-bottom: 25px;
+  animation: pulse 2s infinite ease-in-out;
+}
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; filter: drop-shadow(0 0 20px var(--accent)); }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+.splash-title {
+  font-size: 32px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 1px;
+  margin-bottom: 40px;
+  display: flex;
+  gap: 8px;
+}
+.splash-cracker {
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.splash-loading-bar {
+  width: 300px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 15px;
+}
+.splash-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+#splash-status-text {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 1px;
+</style>
+</head>
+
+<body>
+
+<!-- ── Splash Screen ─────────────────────────────────────────────── -->
+<div id="splash-screen">
+  <img src="logo.png" alt="Logo" class="splash-logo">
+  <div class="splash-title">Toprak Steam <span class="splash-cracker">Cracker</span></div>
+  <div class="splash-loading-bar">
+    <div id="splash-fill" class="splash-fill"></div>
+  </div>
+  <div id="splash-status-text">Sistem başlatılıyor...</div>
+</div>
+
+<!-- ── Update Banner ─────────────────────────────────────────────── -->
+<div id="update-banner" class="hidden">
+  <span>🔔 <strong>Yeni sürüm mevcut!</strong> Güncelleme için GitHub'ı ziyaret et.</span>
+  <button class="btn-banner" onclick="openGithub()">İndir</button>
+  <button class="btn-close-banner" onclick="document.getElementById('update-banner').classList.add('hidden')">✕</button>
+</div>
+
+<!-- ── Background Canvas ─────────────────────────────────────────── -->
+<canvas id="particles-canvas"></canvas>
+
+<!-- ── Layout ────────────────────────────────────────────────────── -->
+<div id="layout">
+
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <img src="logo.png" alt="Logo" style="width: 44px; height: 44px; object-fit: contain; border-radius: 8px;">
+      <div>
+        <div class="logo-text">Toprak Steam</div>
+        <div class="logo-sub">Cracker</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-page="library"    onclick="navigateTo('library')">
+        <span class="nav-icon">🎮</span> Kütüphane
+      </button>
+      <button class="nav-item" data-page="add"              onclick="navigateTo('add')">
+        <span class="nav-icon">➕</span> Oyun Ekle
+      </button>
+      <button class="nav-item" data-page="online-fix"       onclick="navigateTo('online-fix')">
+        <span class="nav-icon">🌐</span> Online Fix
+      </button>
+      <button class="nav-item" data-page="settings"         onclick="navigateTo('settings')">
+        <span class="nav-icon">⚙️</span> Ayarlar
+      </button>
+      <button class="nav-item" data-page="about"            onclick="navigateTo('about')">
+        <span class="nav-icon">ℹ️</span> Hakkında / SSS
+      </button>
+    </nav>
+    <div style="padding: 0 12px; margin-bottom: 5px;">
+      <button class="btn btn-primary btn-sm" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; padding: 10px;" onclick="restartSteam()">
+        <span style="font-size: 14px;">🔄</span> Steam'i Yeniden Başlat
+      </button>
+    </div>
+    <div class="dll-status-container" onclick="navigateTo('settings')" title="Ayarlara Git">
+      <div class="dll-indicator" id="dll-indicator"></div>
+      <div class="dll-text" id="dll-status-text">Kontrol...</div>
+    </div>
+    <div class="sidebar-footer">
+      <span id="sidebar-version">v...</span>
+      <span id="sidebar-steam-status" class="text-muted">steam</span>
+    </div>
+  </aside>
+
+  <main id="main">
+
+    <!-- ── Library ──────────────────────────────────────────────── -->
+    <div id="page-library" class="page active">
+      <div class="page-header">
+        <h1>Oyun Kütüphanesi</h1>
+        <div class="header-actions">
+          <input type="search" id="library-search" class="search-input" placeholder="🔍 Kütüphanede ara…" oninput="filterLibrary(this.value)">
+          <button class="btn btn-primary" onclick="navigateTo('add')">+ Oyun Ekle</button>
+        </div>
+      </div>
+      <div id="games-grid"></div>
+      <div id="empty-library" class="hidden">
+        <div class="empty-icon">🎮</div>
+        <h2>Kütüphanen Boş</h2>
+        <p>Henüz oyun eklenmemiş. İlk oyununu yüklemek için aşağıdaki butona tıkla.</p>
+        <button class="btn btn-primary" onclick="navigateTo('add')">+ İlk Oyunu Ekle</button>
+      </div>
+    </div>
+
+    <!-- ── Add Game ──────────────────────────────────────────────── -->
+    <div id="page-add" class="page">
+      <div class="page-header"><h1>Oyun Ekle</h1></div>
+      <div class="warn-banner">⚠️ Kütüphanemiz kısıtlıdır. Tüm oyunlar mevcut olmayabilir. Oyun bulunamazsa Steam App ID'yi girip deneyebilirsin.</div>
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('search-install', this)">🔍 Ara & İndir</button>
+        <button class="tab-btn"       onclick="switchTab('file-upload',    this)">📁 Dosya Yükle</button>
+      </div>
+
+      <div id="tab-search-install" class="tab-pane active">
+        <div class="add-search-row">
+          <input type="search" id="add-search-input" class="search-input"
+                 placeholder="Oyun adı veya App ID gir…" oninput="onAddSearch(this.value)">
+          <button class="btn btn-ghost btn-sm" onclick="installById()">App ID ile Yükle</button>
+        </div>
+        <div id="supported-games-count" style="font-size: 13px; color: var(--accent); margin-bottom: 20px; font-weight: 600; letter-spacing: 0.5px;">
+          Mevcut 62.289 oyun içerisinde arama yapılıyor...
+        </div>
+        <div id="search-results"></div>
+        <div id="search-empty" class="hidden" style="color:var(--muted);font-size:13px;padding:20px 0;">
+          Sonuç bulunamadı. App ID doğruysa "App ID ile Yükle" butonunu kullan.
+        </div>
+      </div>
+
+      <div id="tab-file-upload" class="tab-pane">
+        <div class="drop-zone" id="drop-zone">
+          <div class="dz-icon">📂</div>
+          <p>Manifest ve Lua dosyalarını buraya sürükle ya da tıklayarak seç.<br>
+             <span style="font-size:12px;">(.manifest ve .lua uzantılı dosyalar kabul edilir)</span></p>
+          <button class="btn btn-ghost" onclick="browseFiles()">Dosya Seç</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Online Fix ────────────────────────────────────────────── -->
+    <div id="page-online-fix" class="page">
+      <div class="page-header">
+        <h1>Online Fix</h1>
+        <button class="btn btn-ghost btn-sm" onclick="loadOnlineFix()">↺ Yenile</button>
+      </div>
+      <div class="warn-banner">🌐 Online Fix oyunlar bu listeden indirilebilir. Steam yolunun ayarlanmış olması gerekir.</div>
+      <div class="of-search-row">
+        <input type="search" id="of-search" class="search-input" placeholder="🔍 Oyun ara…" oninput="filterOF(this.value)">
+      </div>
+      <div id="of-list">
+        <div style="color:var(--muted);font-size:13px;">Liste yükleniyor…</div>
+      </div>
+    </div>
+
+    <!-- ── Settings ──────────────────────────────────────────────── -->
+    <div id="page-settings" class="page">
+      <div class="page-header"><h1>Ayarlar</h1></div>
+
+      <div class="settings-section">
+        <h3>Steam Yolu</h3>
+        <div class="settings-row">
+          <label>Klasör</label>
+          <input type="text" id="steam-path-input" class="search-input" placeholder="C:\Program Files (x86)\Steam">
+          <button class="btn btn-ghost btn-sm" onclick="browseSteamFolder()">Gözat</button>
+          <button class="btn btn-ghost btn-sm" onclick="autoDetectSteam()">Otomatik</button>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveSteamPath()">Kaydet</button>
+      </div>
+
+      <div class="settings-section">
+        <h3>Steam Kontrolleri</h3>
+        <div class="btn-group">
+          <button class="btn btn-ghost" onclick="restartSteam()">♻️ Steam'i Yeniden Başlat</button>
+          <button class="btn btn-ghost" onclick="downloadHid()">⬇️ Toprakcracker.dll İndir</button>
+          <button class="btn btn-danger" onclick="removeHid()">🗑️ Toprakcracker.dll Kaldır</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── About / FAQ ───────────────────────────────────────────── -->
+    <div id="page-about" class="page">
+      <div class="page-header"><h1>Hakkında & SSS</h1></div>
+
+      <div class="about-hero">
+        <div class="app-icon" style="width: 80px; height: 80px; margin: 0 auto 15px auto; padding: 0; overflow: hidden; background: none; border-radius: 16px;">
+          <img src="logo.png" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 10px rgba(253, 1, 22, 0.4));">
+        </div>
+        <h2>Toprak Steam Cracker</h2>
+        <div class="ver" id="about-version">v...</div>
+        <p>Steam manifest ve lua dosyalarını kolayca yüklemenizi sağlayan açık kaynaklı bir araçtır. Sadece eğitim amaçlıdır.</p>
+        <div class="about-links">
+          <button class="btn btn-ghost btn-sm" onclick="openGithub()">⭐ GitHub</button>
+          <button class="btn btn-ghost btn-sm" onclick="openSteamDB()">🔗 SteamDB</button>
+        </div>
+      </div>
+
+      <div id="faq-list"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── Context Menu ──────────────────────────────────────────────── -->
+<div id="ctx-menu" class="hidden">
+  <div class="ctx-item" onclick="ctxSteamDB()"><span>🔗</span> SteamDB'de Aç</div>
+  <div class="ctx-item" onclick="ctxCopyId()"><span>📋</span> App ID Kopyala</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" onclick="ctxRemove()"><span>🗑️</span> Oyunu Kaldır</div>
+</div>
+
+<!-- ── Confirm Dialog ────────────────────────────────────────────── -->
+<div id="confirm-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="confirm-title">Emin misin?</h3>
+    <p id="confirm-msg" style="margin-top:10px;"></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="confirm-no">İptal</button>
+      <button class="btn btn-danger" id="confirm-yes">Evet, Kaldır</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Legal Modal ───────────────────────────────────────────────── -->
+<div id="legal-modal" class="modal-overlay hidden">
+  <div class="modal-box legal-box">
+    <h2>⚡ Toprak Steam Cracker — Yasal Uyarı</h2>
+    <div class="legal-scroll">
+      <h4>Kullanım Şartları</h4>
+      Bu uygulama yalnızca <strong>eğitim ve araştırma amaçlıdır</strong>. Geliştirici, bu uygulamanın kötüye kullanılmasından sorumlu değildir.
+      <h4>Telif Hakkı</h4>
+      Steam, Valve Corporation'ın tescilli markasıdır. Bu uygulama Valve Corporation ile herhangi bir bağlantısı bulunmamaktadır.
+      <h4>Sorumluluk Reddi</h4>
+      Bu uygulama "olduğu gibi" sunulmaktadır. Kullanımdan doğabilecek her türlü zarar kullanıcının sorumluluğundadır. Geliştirici herhangi bir garanti vermemektedir.
+      <h4>Açık Kaynak</h4>
+      Kaynak kodu GitHub üzerinden erişilebilirdir. Katkıda bulunabilirsiniz.
+      <h4>Gizlilik</h4>
+      Bu uygulama hiçbir kişisel veri toplamaz veya iletmez.
+    </div>
+    <label class="legal-check-row">
+      <input type="checkbox" id="legal-checkbox" onchange="document.getElementById('accept-btn').disabled=!this.checked">
+      <span>Yukarıdaki yasal uyarıyı okudum ve kabul ediyorum.</span>
+    </label>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="rejectLegal()">Reddet & Çıkış</button>
+      <button class="btn btn-primary" id="accept-btn" disabled onclick="acceptLegal()">Kabul Et & Devam</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast Container ───────────────────────────────────────────── -->
+<div id="toast-container"></div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────
+let currentPage = 'library';
+let installedGames = [];
+let ofGames = [];
+let ctxTarget = null;
+let searchDebounce = null;
+
+// ─── Image Fallback ───────────────────────────────────────────────────────
+const IMG_CDNS = [
+  appId => `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`,
+  appId => `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/header.jpg`,
+  appId => `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/capsule_231x87.jpg`,
+];
+
+function setImgPlaceholder(img) {
+  img.removeAttribute('onerror');
+  img._isPlaceholder = true;
+  img.src = 'logo.png';
+  img.style.objectFit = 'contain';
+  img.style.padding = '15px';
+  img.style.background = 'linear-gradient(180deg, var(--bg3) 0%, var(--bg) 100%)';
+  img.style.opacity = '1';
+  img.style.filter = 'drop-shadow(0 0 10px rgba(253, 1, 22, 0.5)) opacity(0.5)';
+}
+
+function handleImageLoad(img) {
+  // Steam CDN rate-limit'te küçük gri placeholder döndürebilir
+  if (img.naturalWidth < 16 || img.naturalHeight < 16) {
+    const appId = img.dataset.appId;
+    if (appId) handleImageError(img, appId);
+    return;
+  }
+  if (img._loadTimer) { clearTimeout(img._loadTimer); img._loadTimer = null; }
+  img.style.opacity = '1';
+}
+
+function handleImageError(img, appId) {
+  if (img._loadTimer) { clearTimeout(img._loadTimer); img._loadTimer = null; }
+  const step = parseInt(img.dataset.step || '0', 10);
+  img.dataset.step = String(step + 1);
+
+  if (step < IMG_CDNS.length) {
+    img.src = IMG_CDNS[step](appId);
+    img._loadTimer = setTimeout(() => handleImageError(img, appId), 6000);
+  } else {
+    setImgPlaceholder(img);
+  }
+}
+
+function attachImgHandlers(img, appId) {
+  img.dataset.appId = appId;
+  img.onload  = function() { handleImageLoad(this); };
+  img.onerror = function() { handleImageError(this, appId); };
+  img._loadTimer = setTimeout(() => { if (img.style.opacity === '0') handleImageError(img, appId); }, 6000);
+}
+
+// ─── Gri Kalan Görselleri Yeniden Dene ───────────────────────────────────────
+function retryGreyImages() {
+  document.querySelectorAll('img[data-app-id]').forEach(img => {
+    // Placeholder'a düşmüş ya da zaten yüklenmiş görselleri atla
+    if (img._isPlaceholder || img.style.opacity === '1') return;
+    const appId = img.dataset.appId;
+    if (!appId) return;
+    const retries = parseInt(img.dataset.scanRetries || '0', 10);
+    if (retries >= 3) return; // 3 denemeden fazlasına gerek yok
+
+    img.dataset.scanRetries = String(retries + 1);
+    img.dataset.step = '0'; // Baştan dene
+    if (img._loadTimer) { clearTimeout(img._loadTimer); img._loadTimer = null; }
+    // Cache-bust parametresiyle taze istek
+    img.src = IMG_CDNS[0](appId) + '?_r=' + Date.now();
+    img._loadTimer = setTimeout(() => handleImageError(img, appId), 6000);
+  });
+}
+
+// Her 12 saniyede gri kalanları tara
+setInterval(retryGreyImages, 12000);
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+window.addEventListener('pywebviewready', async () => {
+  const legal = await pywebview.api.get_legal_status();
+  if (!legal.accepted) {
+    document.getElementById('legal-modal').classList.remove('hidden');
+  } else {
+    initApp();
+  }
+
+  window.addEventListener('focus', () => {
+    if (currentPage === 'library') loadLibrary();
+    if (currentPage === 'online-fix') loadOnlineFix();
+  });
+});
+
+async function acceptLegal() {
+  await pywebview.api.accept_legal();
+  document.getElementById('legal-modal').classList.add('hidden');
+  initApp();
+}
+async function rejectLegal() {
+  await pywebview.api.reject_legal();
+}
+
+async function initApp() {
+  const splash = document.getElementById('splash-screen');
+  const fill = document.getElementById('splash-fill');
+  const status = document.getElementById('splash-status-text');
+  
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  status.textContent = 'Versiyon kontrol ediliyor...';
+  fill.style.width = '20%';
+  await sleep(500); // Sinematik bekleme
+  
+  const vd = await pywebview.api.get_version();
+  document.getElementById('sidebar-version').textContent = 'v' + vd.version;
+  document.getElementById('about-version').textContent  = 'v' + vd.version;
+
+  status.textContent = 'Oyun verileri ve görselleri çekiliyor...';
+  fill.style.width = '50%';
+  await sleep(800); // Görsellerin çekilme hissi
+  
+  buildFaq();
+  await loadLibrary();
+
+  status.textContent = 'Ayarlar yapılandırılıyor...';
+  fill.style.width = '80%';
+  await sleep(500);
+  
+  checkUpdate();
+
+  const settings = await pywebview.api.get_settings();
+  if (settings.steam_path) {
+    document.getElementById('steam-path-input').value = settings.steam_path;
+    document.getElementById('sidebar-steam-status').textContent = '✓ steam';
+    document.getElementById('sidebar-steam-status').style.color = 'var(--success)';
+  }
+
+  document.getElementById('supported-games-count').textContent = `Mevcut 62.289 oyun içerisinde arama yapılıyor...`;
+
+  doSearch(''); // Popüler oyunları yükle
+
+  status.textContent = 'Sistem hazır!';
+  fill.style.width = '100%';
+  
+  checkDllStatus();
+  
+  setTimeout(() => {
+    splash.classList.add('hidden');
+  }, 1000); // 1 saniye de %100'de beklesin
+}
+
+// ─── Navigation ───────────────────────────────────────────────────────────
+function navigateTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  document.getElementById('page-' + page)?.classList.add('active');
+  document.querySelector(`.nav-item[data-page="${page}"]`)?.classList.add('active');
+  currentPage = page;
+
+  if (page === 'library') loadLibrary();
+  if (page === 'online-fix' && ofGames.length === 0) loadOnlineFix();
+}
+
+// ─── Library ──────────────────────────────────────────────────────────────
+async function loadLibrary() {
+  showSkeletons(8);
+  installedGames = await pywebview.api.get_installed_games();
+  renderLibrary(installedGames);
+}
+
+function showSkeletons(n) {
+  const grid = document.getElementById('games-grid');
+  grid.innerHTML = '';
+  document.getElementById('empty-library').classList.add('hidden');
+  for (let i = 0; i < n; i++) {
+    grid.innerHTML += `
+      <div class="skeleton-card">
+        <div class="skeleton-cover"></div>
+        <div class="skeleton-info">
+          <div class="skeleton-line" style="width:70%"></div>
+          <div class="skeleton-line" style="width:40%"></div>
+        </div>
+      </div>`;
+  }
+}
+
+function renderLibrary(games) {
+  const grid = document.getElementById('games-grid');
+  const empty = document.getElementById('empty-library');
+  grid.innerHTML = '';
+  if (!games || games.length === 0) {
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  games.forEach(g => grid.appendChild(createGameCard(g)));
+}
+
+function createGameCard(game) {
+  const div = document.createElement('div');
+  div.className = 'game-card';
+  div.dataset.appId = game.app_id;
+  div.dataset.name  = game.name;
+
+  const img = document.createElement('img');
+  img.src = game.cover;
+  img.alt = esc(game.name);
+  img.style.cssText = 'opacity:0;transition:opacity 0.3s ease-in;';
+  attachImgHandlers(img, game.app_id);
+
+  div.appendChild(img);
+  div.insertAdjacentHTML('beforeend', `
+    <div class="card-overlay">
+      <button class="btn btn-danger btn-sm" onclick="confirmRemove('${game.app_id}',event)">🗑️ Kaldır</button>
+    </div>
+    <div class="card-info">
+      <div class="card-name" title="${esc(game.name)}">${esc(game.name)}</div>
+      <div class="card-id">ID: ${game.app_id}</div>
+    </div>`);
+  div.addEventListener('contextmenu', e => { e.preventDefault(); showCtxMenu(e, game.app_id, game.name); });
+  return div;
+}
+
+function filterLibrary(q) {
+  const lower = q.toLowerCase();
+  document.querySelectorAll('#games-grid .game-card').forEach(card => {
+    const match = card.dataset.name?.toLowerCase().includes(lower) ||
+                  card.dataset.appId?.includes(lower);
+    card.style.display = match ? '' : 'none';
+  });
+}
+
+// ─── Remove Game ──────────────────────────────────────────────────────────
+async function confirmRemove(appId, event) {
+  if (event) event.stopPropagation();
+  const name = document.querySelector(`.game-card[data-app-id="${appId}"]`)?.dataset.name || appId;
+  const ok = await showConfirm('Oyunu Kaldır', `"${name}" oyunu kaldırılsın mı?\nLua ve manifest dosyaları silinecek.`);
+  if (!ok) return;
+  const res = await pywebview.api.remove_game(appId);
+  if (res.ok) {
+    toast('success', '✅ Kaldırıldı', `${name} başarıyla kaldırıldı.`);
+    installedGames = installedGames.filter(g => g.app_id !== appId);
+    renderLibrary(installedGames);
+  } else {
+    toast('error', '❌ Hata', res.error);
+  }
+}
+
+// ─── Add Game Tab ─────────────────────────────────────────────────────────
+function onAddSearch(val) {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => doSearch(val), 280);
+}
+
+async function doSearch(q) {
+  const container = document.getElementById('search-results');
+  const empty     = document.getElementById('search-empty');
+  
+  if (!q || q.length < 2) { 
+    container.innerHTML = '';
+    const pop = await pywebview.api.get_popular_games();
+    pop.forEach(g => container.appendChild(createResultCard(g)));
+    empty.classList.add('hidden');
+    return; 
+  }
+  
+  container.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:12px 0;">Aranıyor…</div>';
+  const results = await pywebview.api.search_games(q);
+  container.innerHTML = '';
+  if (!results || results.length === 0) {
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  results.forEach(g => container.appendChild(createResultCard(g)));
+}
+
+function createResultCard(game) {
+  const div = document.createElement('div');
+  div.className = 'result-card';
+  div.id = `result-${game.appid}`;
+
+  const img = document.createElement('img');
+  img.src = `https://cdn.akamai.steamstatic.com/steam/apps/${game.appid}/header.jpg`;
+  img.alt = esc(game.name);
+  img.style.cssText = 'opacity:0;transition:opacity 0.3s ease-in;';
+  attachImgHandlers(img, game.appid);
+
+  div.appendChild(img);
+  div.insertAdjacentHTML('beforeend', `
+    <div class="result-card-info">
+      <div class="result-card-name" title="${esc(game.name)}">${esc(game.name)}</div>
+      <div class="result-card-id">ID: ${game.appid}</div>
+      <button class="result-card-btn" onclick="installGame('${game.appid}', this)">⬇️ Yükle</button>
+    </div>`);
+  return div;
+}
+
+async function installGame(appId, btn) {
+  if (btn) { btn.className = 'result-card-btn installing-btn'; btn.textContent = '⏳ İndiriliyor…'; btn.disabled = true; }
+  const res = await pywebview.api.add_game_by_id(appId);
+  if (!res.ok) {
+    toast('error', '❌ Hata', res.error);
+    if (btn) { btn.className = 'result-card-btn'; btn.textContent = '⬇️ Yükle'; btn.disabled = false; }
+  }
+}
+
+async function installById() {
+  const val = document.getElementById('add-search-input').value.trim();
+  if (!val) { toast('warn', '⚠️ Uyarı', 'App ID veya oyun adı gir.'); return; }
+  const appId = val.match(/^\d+$/) ? val : null;
+  if (!appId) { toast('warn', '⚠️ Uyarı', 'Sayısal bir App ID gir.'); return; }
+  toast('info', '⏳ Yükleniyor', `App ID ${appId} yükleniyor…`);
+  const res = await pywebview.api.add_game_by_id(appId);
+  if (!res.ok) toast('error', '❌ Hata', res.error);
+}
+
+async function browseFiles() {
+  const paths = await pywebview.api.browse_game_files();
+  if (!paths || paths.length === 0) return;
+  const res = await pywebview.api.add_game_files(paths);
+  if (res.ok) {
+    toast('success', '✅ Yüklendi', `${res.lua} lua, ${res.manifests} manifest dosyası yüklendi.`);
+  } else {
+    toast('error', '❌ Hata', res.error);
+  }
+}
+
+// ─── Online Fix ───────────────────────────────────────────────────────────
+async function loadOnlineFix() {
+  document.getElementById('of-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">Liste yükleniyor…</div>';
+  const res = await pywebview.api.get_online_fix_games();
+  if (!res.ok || !res.games.length) {
+    document.getElementById('of-list').innerHTML = `<div style="color:var(--danger);font-size:13px;">Liste yüklenemedi: ${res.error || 'Boş liste'}</div>`;
+    return;
+  }
+  ofGames = res.games;
+  renderOF(ofGames);
+}
+
+function renderOF(games) {
+  const list = document.getElementById('of-list');
+  list.innerHTML = '';
+  games.forEach(game => {
+    const div = document.createElement('div');
+    div.className = 'of-item';
+    div.dataset.name = game.name;
+    div.innerHTML = `
+      <div class="of-item-name">${esc(game.name)}</div>
+      <span class="of-item-status" id="of-status-${btoa(game.id).slice(0,10)}"></span>
+      <button class="btn btn-ghost btn-sm" onclick="downloadOF('${esc(game.id)}', this)">⬇️ İndir</button>`;
+    list.appendChild(div);
+  });
+}
+
+function filterOF(q) {
+  const lower = q.toLowerCase();
+  document.querySelectorAll('#of-list .of-item').forEach(item => {
+    item.style.display = item.dataset.name?.toLowerCase().includes(lower) ? '' : 'none';
+  });
+}
+
+async function downloadOF(gameId, btn) {
+  if (btn) { btn.textContent = '⏳ İndiriliyor'; btn.disabled = true; }
+  await pywebview.api.download_online_fix_game(gameId);
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────
+async function saveSteamPath() {
+  const path = document.getElementById('steam-path-input').value.trim();
+  const res = await pywebview.api.save_settings(path);
+  if (res.ok) {
+    toast('success', '✅ Kaydedildi', 'Steam yolu güncellendi.');
+    document.getElementById('sidebar-steam-status').textContent = '✓ steam';
+    document.getElementById('sidebar-steam-status').style.color = 'var(--success)';
+  }
+}
+
+async function autoDetectSteam() {
+  const res = await pywebview.api.detect_steam_path();
+  if (res.path) {
+    document.getElementById('steam-path-input').value = res.path;
+    toast('success', '✅ Algılandı', res.path);
+  } else {
+    toast('warn', '⚠️ Bulunamadı', 'Steam otomatik bulunamadı. Manuel gir.');
+  }
+}
+
+async function browseSteamFolder() {
+  const res = await pywebview.api.browse_steam_folder();
+  if (res.path) document.getElementById('steam-path-input').value = res.path;
+}
+
+async function restartSteam() {
+  const ok = await showConfirm('Steam\'i Yeniden Başlat', 'Steam kapatılıp yeniden başlatılacak. Devam edilsin mi?');
+  if (!ok) return;
+  const res = await pywebview.api.restart_steam();
+  if (res.ok) toast('success', '✅ Yeniden Başlatıldı', 'Steam yeniden başlatıldı.');
+  else toast('error', '❌ Hata', res.error);
+}
+
+async function downloadHid() {
+  const res = await pywebview.api.download_hid_dll();
+  if (res.ok) {
+    toast('success', '✅ İndirildi', `Toprakcracker.dll ${res.path} klasörüne kaydedildi.`);
+    setTimeout(checkDllStatus, 2500);
+  } else {
+    toast('error', '❌ Hata', res.error);
+  }
+}
+
+async function removeHid() {
+  const ok = await showConfirm('Toprakcracker.dll Kaldır', 'xinput1_4.dll ve toprakcracker.dll silinecek.');
+  if (!ok) return;
+  const res = await pywebview.api.remove_hid_dll();
+  if (res.ok) {
+    toast(res.removed.length ? 'success' : 'info',
+          res.removed.length ? '✅ Kaldırıldı' : 'ℹ️ Bulunamadı',
+          res.removed.length ? res.removed.join(', ') + ' silindi.' : 'Silinecek dosya bulunamadı.');
+    setTimeout(checkDllStatus, 2500);
+  } else {
+    toast('error', '❌ Hata', res.error);
+  }
+}
+
+async function restartSteam() {
+  toast('info', '🔄 İşlem Başladı', "Steam kapatılıp yeniden başlatılıyor...");
+  const res = await pywebview.api.restart_steam();
+  if (res.ok) {
+    toast('success', '✅ Başarılı', "Steam başarıyla yeniden başlatıldı!");
+  } else {
+    toast('error', '❌ Hata', "Steam başlatılamadı: " + res.error);
+  }
+}
+
+async function checkDllStatus() {
+  const ind = document.getElementById('dll-indicator');
+  const txt = document.getElementById('dll-status-text');
+  
+  txt.textContent = 'Kontrol ediliyor...';
+  ind.style.background = 'var(--muted)';
+  ind.style.boxShadow = 'none';
+  txt.style.color = 'var(--muted)';
+  
+  const res = await pywebview.api.check_dlls();
+  
+  txt.textContent = res.msg;
+  if (res.installed) {
+    ind.style.background = 'var(--success)';
+    ind.style.boxShadow = '0 0 10px var(--success)';
+    txt.style.color = 'var(--success)';
+  } else {
+    ind.style.background = 'var(--danger)';
+    ind.style.boxShadow = '0 0 10px var(--danger)';
+    txt.style.color = 'var(--danger)';
+  }
+}
+
+// ─── About / FAQ ──────────────────────────────────────────────────────────
+const FAQ_DATA = [
+  { q: 'Nasıl oyun yüklerim?', a: 'Soldaki "Oyun Ekle" sekmesine geç. Oyun adını ya da App ID\'yi ara, çıkan sonuçtan "Yükle"ye tıkla.' },
+  { q: 'Oyun listede yok ne yapayım?', a: 'Eğer oyun GitHub depomuzun desteklediği 62.000+ oyun arasında yoksa maalesef programdan otomatik ekleyemezsiniz. Kendi bulduğunuz .manifest/.lua dosyaları varsa "Dosya Yükle" sekmesinden manuel ekleyebilirsiniz.' },
+  { q: 'Programı kapatırsam indirdiğim oyunları oynamaya devam edebilir miyim?', a: 'Evet! Bizim programımız sadece oyunları Steam\'e tanıtmak için bir köprü görevi görür. Dosyalar bir kez yüklendikten sonra, programımız kapalı olsa bile Steam üzerinden oyunlarınızı oynayabilirsiniz.' },
+  { q: 'Steam Tools mu kullanıyorsunuz?', a: `
+<b>Hayır, kesinlikle Steam Tools kullanmıyoruz!</b><br>
+Steam Tools, kapalı kutu bir yazılımdır ve internette arka planda gizlice <b>kripto madencilik (mining)</b> yaptığına veya veri topladığına dair ciddi iddialar bulunmaktadır. Güvenliğinizi riske atmamak için o sistemi kesinlikle kullanmıyoruz.<br><br>
+
+<b>Bu uygulama tamamen şeffaf ve güvenlidir:</b>
+<ul>
+  <li>İçerisinde hiçbir zararlı kod, reklam veya madenci (miner) barındırmaz. DLL dosyalarını <b>VirusTotal</b> üzerinden istediğiniz zaman test edebilirsiniz.</li>
+  <li>Hiçbir kişisel veri toplamaz veya dış sunuculara göndermez.</li>
+</ul>
+` },
+  { q: 'xinput1_4.dll ve toprakcracker.dll tam olarak ne işe yarar?', a: `
+Bu iki dosya, Steam'in lisans doğrulamasını yerel olarak yönetir. Tamamen sizin bilgisayarınız üzerinde çalışır, herhangi bir dış sunucuya bağlantı kurmaz. <b>VirusTotal</b> üzerinden güvenliklerini istediğiniz zaman doğrulayabilirsiniz.
+` },
+  { q: 'Hesabımın Ban (Yasaklanma) riski var mı?', a: 'Bugüne kadar hiç böyle bir durum yaşanmadı ve kimse ban yemedi. Ancak yine de ana hesabınızı riske atmamak için her zaman bir <b>Yan Hesap</b> kullanmanızı tavsiye ediyoruz.' },
+  { q: 'Oyunu indirdim ama Steam\'de "Satın Al" yazıyor, sorun nedir?', a: 'Manifest dosyaları yüklendikten sonra Steam\'i yeniden başlatmamış olabilirsiniz. Eğer başlattıysanız, Ayarlar menüsüne gidip DLL dosyalarını tekrar kurmayı deneyin.' },
+  { q: 'İndirdiğim oyunlara büyük bir güncelleme gelirse ne yapmalıyım?', a: 'Oyunun güncel versiyonunu oynayabilmek için en güncel .lua dosyasını kullanmanız gerekir. Oyunu programdan kaldırıp yeniden aratarak güncel halini indirebilirsiniz.' },
+  { q: 'Online Fix nedir?', a: 'Crackli oyunlarınızı arkadaşlarınızla çevrimiçi (Online) oynamanızı sağlayan ek bir düzeltme dosyasıdır.' },
+  { q: 'Her oyunda çalışır mı?', a: `
+<b>Hayır — bazı oyunlar kendi koruma sistemleri nedeniyle çalışmayabilir.</b><br><br>
+
+Bizim sistemimiz yalnızca <b>Steam'in lisans doğrulamasını</b> atlatır. Ancak bazı oyunlar bunun üstüne kendi ek koruma katmanlarını ekler:<br><br>
+
+<div style="display:flex;flex-direction:column;gap:10px;margin:10px 0;">
+
+  <div style="background:rgba(255,71,87,0.08);border-left:3px solid var(--danger);border-radius:6px;padding:12px 14px;">
+    <b style="color:var(--danger);">🔴 EA Oyunları (EA App / Origin)</b><br>
+    <span style="color:var(--muted);font-size:12px;">FIFA, Battlefield, The Sims, Need for Speed vb.</span><br>
+    EA'nın kendi <b>EA App</b> altyapısı üzerinden ek lisans kontrolü yapar. Steam crack'i tek başına yeterli olmayabilir. Özel bir EA fix'i gerekebilir.
+  </div>
+
+  <div style="background:rgba(255,71,87,0.08);border-left:3px solid var(--danger);border-radius:6px;padding:12px 14px;">
+    <b style="color:var(--danger);">🔴 Rockstar Oyunları (Rockstar Games Launcher)</b><br>
+    <span style="color:var(--muted);font-size:12px;">GTA V, RDR2, Max Payne 3 vb.</span><br>
+    Rockstar kendi launcher'ını ve sunucu tabanlı lisans doğrulamasını kullanır. Steam crack'inin yanında ayrıca Rockstar launcher fix'i gerekmektedir.
+  </div>
+
+  <div style="background:rgba(255,212,59,0.08);border-left:3px solid var(--warn);border-radius:6px;padding:12px 14px;">
+    <b style="color:var(--warn);">🟡 Denuvo Korumalı Oyunlar</b><br>
+    <span style="color:var(--muted);font-size:12px;">Hogwarts Legacy, Jedi Survivor, Street Fighter 6 vb.</span><br>
+    Denuvo, oyun dosyasının içine gömülü güçlü bir DRM sistemidir. Denuvo kırılmamışsa (crack yoksa) oyun hiçbir şekilde açılmaz. Denuvo'su kaldırılmış ya da bypass edilmiş versiyonların fix'i çıkmadan çalışması mümkün değildir.
+  </div>
+
+  <div style="background:rgba(255,71,87,0.08);border-left:3px solid var(--danger);border-radius:6px;padding:12px 14px;">
+    <b style="color:var(--danger);">🔴 Diğer Korumalar</b><br>
+    <span style="color:var(--muted);font-size:12px;">Ubisoft Connect, Xbox Game Pass, Battle.net vb.</span><br>
+    Steam dışı launcher kullanan veya kendi sunucusundan lisans doğrulayan tüm oyunlar aynı sorunu yaşayabilir.
+  </div>
+
+</div>
+
+<div style="background:rgba(0,201,167,0.08);border:1px solid rgba(0,201,167,0.3);border-radius:8px;padding:14px;margin-top:6px;">
+  <b style="color:var(--success);">💬 Ne Yapmalısın?</b><br>
+  Oyunun çalışıp çalışmadığından emin değilsen ya da sorun yaşıyorsan <b>Discord topluluğumuza</b> danış. Topluluk üyeleri hangi oyunların fix'inin çıktığını, hangilerinin çalışmadığını sana anında söyleyebilir. Yalnız takılma!
+</div>
+` },
+];
+
+function buildFaq() {
+  const list = document.getElementById('faq-list');
+  list.innerHTML = '';
+  FAQ_DATA.forEach((item, i) => {
+    list.innerHTML += `
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(${i})">
+          <span>${item.q}</span>
+          <span class="faq-arrow" id="faq-arrow-${i}">▼</span>
+        </div>
+        <div class="faq-answer" id="faq-ans-${i}">${item.a}</div>
+      </div>`;
+  });
+}
+
+function toggleFaq(i) {
+  const ans = document.getElementById('faq-ans-' + i);
+  const arrow = document.getElementById('faq-arrow-' + i);
+  const q = ans.previousElementSibling;
+  const open = ans.classList.toggle('open');
+  q.classList.toggle('open', open);
+}
+
+async function openGithub()  {
+  const url = await pywebview.api.get_project_github_url();
+  if (url) pywebview.api.open_in_browser(url);
+}
+function openSteamDB() { pywebview.api.open_in_browser('https://steamdb.info/'); }
+
+// ─── Context Menu ─────────────────────────────────────────────────────────
+function showCtxMenu(e, appId, name) {
+  ctxTarget = { appId, name };
+  const menu = document.getElementById('ctx-menu');
+  menu.classList.remove('hidden');
+  const x = Math.min(e.clientX, window.innerWidth - 200);
+  const y = Math.min(e.clientY, window.innerHeight - 140);
+  menu.style.left = x + 'px';
+  menu.style.top  = y + 'px';
+}
+function hideCtxMenu() { document.getElementById('ctx-menu').classList.add('hidden'); }
+document.addEventListener('click', hideCtxMenu);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideCtxMenu(); });
+
+function ctxSteamDB() { if (ctxTarget) pywebview.api.open_in_browser(`https://steamdb.info/app/${ctxTarget.appId}/`); }
+function ctxCopyId()  { if (ctxTarget) navigator.clipboard?.writeText(ctxTarget.appId).then(() => toast('info','📋 Kopyalandı', `App ID: ${ctxTarget.appId}`)); }
+function ctxRemove()  { if (ctxTarget) confirmRemove(ctxTarget.appId); }
+
+// ─── Confirm Dialog ───────────────────────────────────────────────────────
+function showConfirm(title, msg) {
+  return new Promise(resolve => {
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-msg').textContent   = msg;
+    document.getElementById('confirm-modal').classList.remove('hidden');
+    const yes = document.getElementById('confirm-yes');
+    const no  = document.getElementById('confirm-no');
+    function cleanup() { document.getElementById('confirm-modal').classList.add('hidden'); yes.onclick = null; no.onclick = null; }
+    yes.onclick = () => { cleanup(); resolve(true); };
+    no.onclick  = () => { cleanup(); resolve(false); };
+  });
+}
+
+// ─── Tab Switch ───────────────────────────────────────────────────────────
+function switchTab(tabId, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + tabId)?.classList.add('active');
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────
+function toast(type, title, msg) {
+  const icons = { success: '✅', error: '❌', info: 'ℹ️', warn: '⚠️' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `
+    <div class="toast-icon">${icons[type] || '●'}</div>
+    <div class="toast-body">
+      <div class="toast-title">${esc(title)}</div>
+      ${msg ? `<div class="toast-msg">${esc(msg)}</div>` : ''}
+    </div>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => {
+    el.classList.add('removing');
+    setTimeout(() => el.remove(), 280);
+  }, 4000);
+}
+
+// ─── Version Check ────────────────────────────────────────────────────────
+async function checkUpdate() {
+  const res = await pywebview.api.check_for_updates();
+  if (res.has_update) {
+    document.getElementById('update-banner').classList.remove('hidden');
+    document.getElementById('update-banner').querySelector('span').innerHTML =
+      `🔔 <strong>Yeni sürüm mevcut: v${res.latest}</strong> (mevcut: v${res.current})`;
+  }
+}
+
+// ─── Python Push Events ───────────────────────────────────────────────────
+window.onPythonEvent = function(payload) {
+  const { event, data } = payload;
+  switch (event) {
+
+    case 'install_progress': {
+      const btn = document.querySelector(`#result-${data.app_id} .result-card-btn`);
+      if (btn) btn.textContent = data.step === 'downloading' ? '⏳ İndiriliyor…' : '⚙️ Kuruluyor…';
+      break;
+    }
+    case 'install_done': {
+      toast('success', '✅ Kuruldu!', `${data.game_name} başarıyla yüklendi.`);
+      const btn = document.querySelector(`#result-${data.app_id} .result-card-btn`);
+      if (btn) { btn.className = 'result-card-btn done-btn'; btn.textContent = '✓ Yüklendi'; btn.disabled = true; }
+      installedGames.push({ app_id: data.app_id, name: data.game_name, cover: data.cover });
+      if (currentPage === 'library') renderLibrary(installedGames);
+      break;
+    }
+    case 'install_error': {
+      toast('error', '❌ Kurulum Hatası', data.error);
+      const btn = document.querySelector(`#result-${data.app_id} .result-card-btn`);
+      if (btn) { btn.className = 'result-card-btn'; btn.textContent = '⬇️ Yükle'; btn.disabled = false; }
+      break;
+    }
+
+    case 'game_name_updated': {
+      const card = document.querySelector(`.game-card[data-app-id="${data.app_id}"]`);
+      if (card) {
+        card.dataset.name = data.name;
+        const nameEl = card.querySelector('.card-name');
+        if (nameEl) {
+          nameEl.textContent = data.name;
+          nameEl.title = data.name;
+        }
+        const imgEl = card.querySelector('img');
+        if (imgEl) imgEl.alt = data.name;
+      }
+      break;
+    }
+
+    case 'online_fix_progress': {
+      toast('info', '⏳ İndiriliyor', data.game_id);
+      break;
+    }
+    case 'online_fix_done': {
+      toast('success', '✅ Tamamlandı', `${data.game_id} İndirilenler klasörüne kaydedildi.`);
+      break;
+    }
+    case 'online_fix_error': {
+      toast('error', '❌ Online Fix Hatası', data.error);
+      break;
+    }
+  }
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Particle Background ──────────────────────────────────────────────────
+function initParticles() {
+  const canvas = document.getElementById('particles-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let width, height;
+  let particles = [];
+  
+  const mouse = { x: null, y: null, radius: 150 };
+
+  window.addEventListener('mousemove', (e) => {
+    mouse.x = e.x;
+    mouse.y = e.y;
+  });
+  window.addEventListener('mouseout', () => {
+    mouse.x = null;
+    mouse.y = null;
+  });
+
+  function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  class Particle {
+    constructor() {
+      this.x = Math.random() * width;
+      this.y = Math.random() * height;
+      this.vx = (Math.random() - 0.5) * 0.5;
+      this.vy = (Math.random() - 0.5) * 0.5;
+      this.radius = Math.random() * 2 + 1;
+    }
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      if (this.x < 0 || this.x > width) this.vx = -this.vx;
+      if (this.y < 0 || this.y > height) this.vy = -this.vy;
+    }
+    draw() {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(253, 1, 22, 0.4)';
+      ctx.fill();
+    }
+  }
+
+  const particleCount = Math.floor((width * height) / 15000);
+  for (let i = 0; i < particleCount; i++) {
+    particles.push(new Particle());
+  }
+
+  function animate() {
+    ctx.clearRect(0, 0, width, height);
+    
+    for (let i = 0; i < particles.length; i++) {
+      particles[i].update();
+      particles[i].draw();
+      
+      for (let j = i; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < 100) {
+          ctx.beginPath();
+          ctx.strokeStyle = `rgba(253, 1, 22, ${0.15 - dist/600})`;
+          ctx.lineWidth = 1;
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.stroke();
+        }
+      }
+      
+      if (mouse.x != null && mouse.y != null) {
+        const dx = particles[i].x - mouse.x;
+        const dy = particles[i].y - mouse.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < mouse.radius) {
+          ctx.beginPath();
+          ctx.strokeStyle = `rgba(255, 77, 0, ${0.4 - dist/(mouse.radius*2.5)})`;
+          ctx.lineWidth = 1.2;
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(mouse.x, mouse.y);
+          ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(animate);
+  }
+  animate();
+}
+
+window.addEventListener('DOMContentLoaded', initParticles);
+</script>
+</body>
+</html>

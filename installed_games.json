@@ -1,0 +1,24 @@
+{
+    "1190000": {
+        "name": "Car Mechanic Simulator 2021"
+    },
+    "1216320": {
+        "name": "Shieldwall"
+    },
+    "2141730": {
+        "name": "Backrooms: Escape Together",
+        "lua_files": [
+            "2141730.lua"
+        ],
+        "manifest_files": []
+    },
+    "3949040": {
+        "name": "RV There Yet?"
+    },
+    "2661300": {
+        "name": "Grounded 2"
+    },
+    "3008130": {
+        "name": "Dying Light: The Beast"
+    }
+}
