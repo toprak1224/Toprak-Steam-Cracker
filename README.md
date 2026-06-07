@@ -1,172 +1,82 @@
-# 📄 Toprak Steam Cracker & Manifest Oluşturucu
+# ⚡ Toprak Steam Cracker V5.0
 
-➡️ Looking for the English version? [Click here to read in English 🇬🇧](#-toprak-steam-cracker--manifest-generator)
-
-<img width="392" height="424" alt="image" src="https://github.com/user-attachments/assets/8033ee05-efd6-42e9-9195-bcf0dba72708" />
-<img width="392" height="424" alt="image" src="https://github.com/user-attachments/assets/025f51e8-f4ea-40a9-886c-92c041d112f5" />
-
-Toprak Steam Cracker, Steam oyunları için manifest ve LUA dosyalarının yönetimini kolaylaştırmak amacıyla geliştirilmiş, Windows için hazırlanmış bir masaüstü uygulamasıdır.  
-Bu yazılım yalnızca eğitimsel ve deneysel amaçlarla kullanılmak üzere tasarlanmıştır.
-
----
-
-### 🔖 İçindekiler  
-[Yasal Uyarı](#yasal-uyarı) • [Özellikler](#özellikler) • [Kurulum ve Kullanım](#kurulum-ve-kullanım) • [Lisans](#lisans) • [Katkıda Bulunma](#katkıda-bulunma) • [İletişim](#iletişim) • [Hakkında](#hakkında)
+<div align="center">
+  <img src="ui_web/static/logo.png" alt="Logo" width="150"/>
+  <h3>Advanced DRM Bypass & API Hooking Utility for Steam</h3>
+  <p>
+    <img src="https://img.shields.io/badge/Version-5.0-red.svg" alt="Version">
+    <img src="https://img.shields.io/badge/Language-Python_|_C++-blue.svg" alt="Stack">
+    <img src="https://img.shields.io/badge/Architecture-x86_/_x64-purple.svg" alt="Architecture">
+    <img src="https://img.shields.io/badge/License-MIT-brightgreen.svg" alt="License">
+  </p>
+</div>
 
 ---
 
-## ⚠️ Yasal Uyarı
+## 🇹🇷 Türkçe
 
-Bu yazılım yalnızca eğitimsel ve deneysel amaçlarla geliştirilmiştir.
+**Toprak Steam Cracker**, Steam istemcisi üzerindeki DRM (Digital Rights Management) denetimlerini dinamik bellek manipülasyonu ile bypass etmek amacıyla geliştirilmiş gelişmiş bir araç setidir. Sistem, IAT (Import Address Table) ve VTable hooking yöntemlerini kullanarak ISteamApps ve ISteamUser arayüzlerini (interface) çalışma zamanında (runtime) yamalar ve yetkilendirme (authorization) sorgularını manipüle eder.
 
-- Hiçbir şekilde ticari kazanç amacı taşımaz.
-- Dijital içeriklerin izinsiz kullanımını, dağıtımını veya çoğaltılmasını teşvik etmez.
-- Kullanım amacı, yalnızca Steam istemcisi üzerinde teknik analiz ve entegrasyon testleri gerçekleştirmektir.
+> 🛑 **GÜVENLİK VE MİMARİ NOTU:**  
+> Projemiz; arka planda izinsiz kripto madencilik (cryptomining) yaptığı, telemetri topladığı ve bellek sızıntılarına (memory leak) yol açtığı bilinen **"Steam Tools"** kapalı kaynak kod yapısını **KULLANMAZ.** Kullanıcı tarafındaki (client-side) tüm API hook işlemleri, sıfırdan derlenmiş kendi kütüphanelerimiz (`xinput1_4.dll` ve `toprakcracker.dll`) üzerinden yönetilmektedir. Mimari tamamen şeffaf ve denetlenebilir durumdadır.
 
-**Hukuki Bilgilendirme:**  
-Steam’e ait içeriklerin lisanssız kullanımı;  
-5846 Sayılı Fikir ve Sanat Eserleri Kanunu, Türk Ceza Kanunu’nun 135., 136. ve 137. maddeleri ve uluslararası telif yasaları kapsamında suç teşkil eder.
+### 🌟 Temel Modüller ve Özellikler
 
-**Geliştirici Sorumluluğu:**  
-Bu yazılımın amacı dışında veya hukuka aykırı şekilde kullanılması halinde geliştirici hiçbir sorumluluk kabul etmez.
+* 🎮 **Dinamik Ownership Enjeksiyonu:** Entegre edilmiş 62.000+ AppID barındıran veritabanı üzerinden, seçilen uygulamanın AppID ve DLC ID argümanlarını `.lua` payload'larına dönüştürerek doğrudan Steam'in `m_mapOwnedApps` bellek yapısına işler.
+* 🌐 **Online Fix (Multiplayer Bypass) Desteği:** Çevrimiçi oyunlar için gereken "Spacewar" (AppID 480) yönlendirmelerini veya özel network bypass yamalarını uygulama içinden asenkron olarak indirip oyun dizinine entegre eder.
+* ⚙️ **Modüler Hooking Motoru (Engine):** Steam istemcisinin güncellemelerinden etkilenmemek adına dinamik offset taraması (signature scanning) kullanır. `ISteamApps::BIsSubscribedApp` ve `BIsDlcInstalled` fonksiyonları return değerlerini daima `true` (1) dönecek şekilde manipüle edilir.
+* 🎨 **Asenkron UI ve IPC İletişimi:** PyWebView tabanlı frontend ile Python backend arasındaki iletişim, asenkron REST/JS API köprüsü üzerinden sağlanır. Arayüz render işlemleri Chromium/Edge-Webview2 motoruyla donanım hızlandırmalı (hardware-accelerated) olarak çalışır.
 
----
+### 📸 Arayüz (UI)
+<div align="center">
+  <!-- GÖRSELLERİNİZİ AŞAĞIDAKİ "LİNK_BURAYA_GELECEK" YAZAN YERLERE YAPIŞTIRIN -->
+  <img width="1253" height="805" alt="image" src="https://github.com/user-attachments/assets/e5010cc3-1a7c-483f-aa1b-483ac6032e69" />
+  <img width="1256" height="803" alt="image" src="https://github.com/user-attachments/assets/6b3e4d5b-b070-451a-8ad3-6e9b7448343b" />
 
-## 🚀 Özellikler
+</div>
 
-### 🔧 Steam Manifest Yönetimi
-- Steam AppID girerek manifest ve LUA dosyalarını GitHub’daki `ManifestHub` üzerinden indirir.
-- Aşağıdaki klasörlere otomatik olarak yerleştirir:
-  - `config/depotcache`
-  - `config/stplug-in`
-- Oyun ve varsa DLC içeriklerinin yüklenme durumunu takip eder.
-- Girilen AppID’ye göre oyunları kaldırabilir.
+### 🚀 Teknik İşleyiş (Under The Hood)
+1. **DLL Hijacking:** Proje, sistemde standart bir Windows kütüphanesi gibi davranan `xinput1_4.dll` modülünü Steam root dizinine konumlandırır.
+2. **Payload Yüklemesi:** Steam.exe başlatıldığında DllMain tetiklenir ve orijinal fonksiyonlar export edilirken (crash önlemek amacıyla), `LoadLibrary()` çağrısı ile asıl payload olan `toprakcracker.dll` belleğe (memory) alınır.
+3. **API Hooking:** VTable pointer'ları tespit edilerek lisans kontrolü yapan Steam API arayüzleri hook'lanır.
+4. **Data Ayrıştırma (Parsing):** Yüklenen oyunların `.manifest` ve `.lua` yapılandırmaları okunur, bellek içi ownership tablosu güncellenir ve Steam API yetki sorguları başarılı (Status: OK) olarak döndürülür.
 
-### 📂 Manuel Dosya Ekleme
-- ZIP dosyaları içinden manifest ve LUA belgelerini çıkarır.
-- `.manifest` ve `.lua` dosyalarını doğrudan sürükle-bırak ile kabul eder.
-
-### 🛠️ HID.dll Yönetimi
-- Gerekli `hid.dll` dosyasını otomatik olarak Steam dizinine veya masaüstüne indirir.
-- İstenirse kaldırma işlemi yapılabilir.
-
-### 🔍 Oyun Bilgisi & Keşif
-- Steam API üzerinden oyun araması yapılabilir (isim → AppID).
-- “Yüklü Oyunları Göster” özelliği ile mevcut oyunlar listelenir.
-- SteamDB sayfasına hızlı erişim sağlanır.
-- Sıkça Sorulan Sorular bağlantısı mevcuttur.
-
-### 🖥️ Steam Kontrol
-- Steam istemcisi kapatılabilir veya yeniden başlatılabilir.
-
-### 🎨 Kullanıcı Arayüzü
-- Karanlık tema desteği.
-- Etkileşimli butonlar ve giriş alanları.
-- Anlık durum mesajları ve animasyonlu yükleme çubuğu.
-
-### 📊 Yeni Özellik – Detaylı Oyun Bilgisi
-- Seçilen oyun için aşağıdaki bilgiler kapak görselinin altında otomatik olarak gösterilir:
-  - Oyun adı
-  - Yayıncı
-  - Tür(ler)
-  - Çıkış tarihi
-  - Fiyat bilgisi (Steam API üzerinden alınır)
+> **⚠️ YASAL UYARI VE SORUMLULUK REDDİ:**  
+> Bu yazılım yalnızca **Tersine Mühendislik (Reverse Engineering) analizi, API çalışma mantığının incelenmesi ve Güvenlik Araştırmaları** (Security Research) kapsamında "Proof of Concept (PoC)" olarak hazırlanmıştır. Dijital korsanlığı teşvik etmez. Yazılımın amacı dışında kullanımından doğacak hesap yasaklamaları (VAC/Game Ban) veya yasal yükümlülüklerden kullanıcı sorumludur. Lütfen kullandığınız ürünlerin lisanslarını satın alarak geliştiricilere destek olunuz.
 
 ---
 
-## ⚙️ Kurulum ve Kullanım
+## 🌍 English
 
-### 1. Python Kurulumu
-Bilgisayarınızda **Python 3.x** sürümünün kurulu olması gerekmektedir.  
-[Python İndir](https://www.python.org/downloads/)
+**Toprak Steam Cracker** is an advanced toolset designed to bypass DRM (Digital Rights Management) verifications on the Steam client via dynamic memory manipulation. The system utilizes IAT (Import Address Table) and VTable hooking methods to patch the `ISteamApps` and `ISteamUser` interfaces at runtime, effectively manipulating authorization queries.
 
-### 2. Bağımlılıkların Kurulumu
-CMD veya PowerShell’de aşağıdaki komutu çalıştırın:
+> 🛑 **SECURITY & ARCHITECTURE NOTICE:**  
+> Our project absolutely **DOES NOT UTILIZE** the closed-source "Steam Tools" infrastructure, which is known for unconsented background cryptomining, telemetry collection, and memory leaks. All client-side API hooking is strictly handled by our custom-compiled, transparent libraries (`xinput1_4.dll` and `toprakcracker.dll`).
 
-## 📄 Toprak Steam Cracker & Manifest Generator
+### 🌟 Core Modules & Features
 
-⬅️ Türkçe sürüm için [buraya tıklayın 🇹🇷](#-toprak-steam-cracker--manifest-oluşturucu)
+* 🎮 **Dynamic Ownership Injection:** Converts selected AppID and DLC ID arguments into `.lua` payloads from a built-in database of 62,000+ entries, injecting them directly into Steam's internal `m_mapOwnedApps` memory structure.
+* 🌐 **Online Fix (Multiplayer Bypass) Support:** Asynchronously fetches and integrates "Spacewar" (AppID 480) redirects or custom network bypass patches required for online multiplayer functionality directly into the game directory.
+* ⚙️ **Modular Hooking Engine:** Implements dynamic signature scanning to maintain stability across Steam client updates. Core functions such as `ISteamApps::BIsSubscribedApp` and `BIsDlcInstalled` are hooked to forcefully return `true` (1).
+* 🎨 **Asynchronous UI & IPC Communication:** The PyWebView-based frontend communicates with the Python backend via an asynchronous JS/REST API bridge. UI rendering is fully hardware-accelerated using the Chromium/Edge-Webview2 engine.
 
-<img width="392" height="424" alt="image" src="https://github.com/user-attachments/assets/cf07e99d-8a42-40f1-9487-df38dac21274" />
+### 📸 User Interface
+<div align="center">
+  <!-- INSERT YOUR IMAGE LINKS BELOW REPLACING THE TEXT -->
+  <img width="1253" height="805" alt="image" src="https://github.com/user-attachments/assets/e5010cc3-1a7c-483f-aa1b-483ac6032e69" />
+  <img width="1256" height="803" alt="image" src="https://github.com/user-attachments/assets/6b3e4d5b-b070-451a-8ad3-6e9b7448343b" />
+</div>
 
-<img width="392" height="424" alt="image" src="https://github.com/user-attachments/assets/ab3b93ab-a3f4-45eb-9f0a-9007a9b69d81" />
+### 🚀 Under The Hood (Technical Flow)
+1. **DLL Hijacking:** The application deploys our custom `xinput1_4.dll` into the Steam root directory, mimicking a standard Windows controller library.
+2. **Payload Execution:** Upon Steam.exe initialization, the `DllMain` entry point is triggered. Original xinput functions are properly exported to prevent process crashes, while a `LoadLibrary()` call fetches our main payload, `toprakcracker.dll`.
+3. **API Hooking:** VTable pointers are intercepted, allowing the engine to detour Steam API interfaces responsible for license verification.
+4. **Data Parsing:** The configuration files (`.manifest` and `.lua`) of the user-selected games are parsed, the in-memory ownership cache is updated, and all subsequent authorization queries return an "OK" status.
 
-https://discord.gg/nTA3yfmTyu
-
-
-
-Toprak Steam Cracker is a desktop application developed for Windows, designed to simplify the management of manifest and LUA files for Steam games.  
-This software is intended strictly for **educational and experimental purposes**.
-
----
-
-### 🔖 Contents  
-[Legal Notice](#legal-notice) • [Features](#features) • [Installation & Usage](#installation--usage) • [License](#license) • [Contributing](#contributing) • [Contact](#contact) • [About](#about)
-
----
-
-## ⚠️ Legal Notice
-
-This software is developed for **educational and experimental purposes only**.
-
-- It is not intended for any commercial use.
-- It does **not promote** the unauthorized use, distribution, or reproduction of digital content.
-- It is intended solely for technical analysis and integration testing on the Steam client.
-
-**Legal Disclaimer:**  
-Unauthorized use of Steam-related content may constitute a legal offense under:
-- Turkish Law on Intellectual and Artistic Works (Law No. 5846)
-- Turkish Penal Code Articles 135–137
-- International copyright laws
-
-**Developer Responsibility:**  
-The developer assumes **no responsibility** for any use of this software outside its intended scope or in violation of the law.
+> **⚠️ LEGAL DISCLAIMER:**  
+> This software is strictly intended as a "Proof of Concept (PoC)" for **Reverse Engineering analysis, API flow investigation, and Security Research**. It does not encourage or promote digital piracy. The developers bear no responsibility for any misuse, account bans (VAC/Game Ban), or legal liabilities resulting from the use of this software. Please support software developers by purchasing legitimate licenses for the products you use.
 
 ---
-
-## 🚀 Features
-
-### 🔧 Steam Manifest Management
-- Download manifest and LUA files from `ManifestHub` on GitHub using Steam AppID.
-- Automatically places files in the following folders:
-  - `config/depotcache`
-  - `config/stplug-in`
-- Tracks the installation status of games and their DLCs.
-- Supports game uninstallation via AppID.
-
-### 📂 Manual File Addition
-- Extracts manifest and LUA files from ZIP archives.
-- Supports drag-and-drop for `.manifest` and `.lua` files.
-
-### 🛠️ HID.dll Management
-- Automatically downloads the required `hid.dll` to the Steam directory or desktop.
-- Optionally allows removing the DLL.
-
-### 🔍 Game Info & Discovery
-- Search games via Steam API (name → AppID).
-- Show installed games feature.
-- Quick access to SteamDB page.
-- Includes a Frequently Asked Questions link.
-
-### 🖥️ Steam Control
-- Steam client can be closed or restarted from the app.
-
-### 🎨 User Interface
-- Dark mode support.
-- Interactive buttons and input fields.
-- Real-time status messages and animated loading bar.
-
-### 📊 New Feature – Detailed Game Info
-- For a selected game, displays the following automatically under the cover image:
-  - Game name
-  - Publisher
-  - Genre(s)
-  - Release date
-  - Price info (retrieved via Steam API)
-
----
-
-https://discord.gg/nTA3yfmTyu
-```bash
-pip install -r requirements.txt
-
+<div align="center">
+  <i>Developed with ❤️ by Toprak</i>
+</div>
